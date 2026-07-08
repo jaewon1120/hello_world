@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>홉스(Hops)</title>
+    <title>Hops</title>
     <style>
         body {
             margin: 0;
@@ -205,10 +205,10 @@
             isGrounded: false
         };
 
-        // 조작감 개선용 변수 (시간 비교 대신 카운터 기반 버퍼로 안정화)
+        // 조작감 시스템 변수
         let keys = { jump: false };
-        let jumpBufferCounter = 0;   // 점프 입력 유효 프레임 수 (인풋 버퍼)
-        let coyoteTimeCounter = 0;   // 공중 유예 프레임 수 (코요테 타임)
+        let jumpBufferCounter = 0;   
+        let coyoteTimeCounter = 0;   
 
         // 맵 변수
         let mapProgress = 0; 
@@ -286,14 +286,13 @@
             generateMap(currentStage);
 
             ball.x = 150;
-            ball.y = 200;
+            ball.y = 280 - ball.radius; // 시작할 때 완벽하게 땅 위에 배치
             ball.vy = 0;
-            ball.isGrounded = false;
+            ball.isGrounded = true; 
             
-            // 타이밍 시스템 프레임 카운터 리셋
             keys.jump = false;
             jumpBufferCounter = 0;
-            coyoteTimeCounter = 0;
+            coyoteTimeCounter = 6;
 
             stageIndicator.textContent = config.name;
             stageIndicator.style.backgroundColor = config.color;
@@ -302,8 +301,7 @@
             closeAllScreens();
             gameState = 'PLAYING';
 
-            // 포커스 강제 지정
-            canvas.focus();
+            setTimeout(() => { canvas.focus(); }, 10);
 
             if(gameLoopId) cancelAnimationFrame(gameLoopId);
             gameLoopId = requestAnimationFrame(gameLoop);
@@ -320,7 +318,7 @@
         }
 
         function updatePhysics() {
-            // 1. 가변 점프 속도 제어 (키를 떼고 위로 상승 중일 때 중력 강화)
+            // 중력 계산
             if (!ball.isGrounded && ball.vy < 0 && !keys.jump) {
                 ball.vy += ball.gravity * 1.6; 
             } else {
@@ -330,9 +328,9 @@
             ball.y += ball.vy;
             mapProgress += speed;
 
-            // 2. 코요테 타임 및 인풋 버퍼 프레임 차감 처리
+            // 코요테 타임 & 인풋 버퍼 차감
             if (ball.isGrounded) {
-                coyoteTimeCounter = 6; // 땅에 닿아있으면 유예 프레임 충전 (6프레임 = 약 0.1초)
+                coyoteTimeCounter = 6; 
             } else if (coyoteTimeCounter > 0) {
                 coyoteTimeCounter--;
             }
@@ -341,7 +339,7 @@
                 jumpBufferCounter--;
             }
 
-            // 3. 점프 최종 실행 판단
+            // 점프 조건 검사 (땅 위거나 코요테 타임 유효할 때)
             if (jumpBufferCounter > 0 && (ball.isGrounded || coyoteTimeCounter > 0)) {
                 ball.vy = ball.jumpForce;
                 ball.isGrounded = false;
@@ -349,7 +347,6 @@
                 coyoteTimeCounter = 0;
             }
 
-            // UI 진행도 계산
             let progressPercent = Math.min((mapProgress / stageLength) * 100, 100);
             progressBar.style.width = `${progressPercent}%`;
             distanceTxt.textContent = `${Math.floor(mapProgress/10)}m / ${Math.floor(stageLength/10)}m`;
@@ -368,8 +365,10 @@
             let currentOnGround = false;
 
             for (let plat of platforms) {
+                // X축 범위 검사
                 if (ballAbsoluteX + ball.radius > plat.x && ballAbsoluteX - ball.radius < plat.x + plat.width) {
-                    if (ball.y + ball.radius >= plat.y && ball.y - ball.radius + ball.vy <= plat.y) {
+                    // 충돌 판정 여유 오차(Tolerance)를 +6으로 상향하여 평지 달리기 시 튕김 방지
+                    if (ball.y + ball.radius >= plat.y - 1 && ball.y - ball.radius + ball.vy <= plat.y + 6) {
                         
                         ball.y = plat.y - ball.radius; 
                         ball.vy = 0;
@@ -386,6 +385,7 @@
 
             ball.isGrounded = currentOnGround;
 
+            // 장애물 검사
             for (let obs of obstacles) {
                 let obsScreenX = obs.x - mapProgress; 
                 if (ball.x + ball.radius - 4 > obsScreenX && ball.x - ball.radius + 4 < obsScreenX + obs.width) {
@@ -396,10 +396,9 @@
             }
         }
 
-        // 입력 처리 로직 완전히 분리 및 단순화
         function handleInGameJumpPress() {
             if (gameState === 'PLAYING') {
-                jumpBufferCounter = 8; // 점프 입력을 8프레임 동안 기억
+                jumpBufferCounter = 8; 
             }
         }
 
@@ -511,11 +510,11 @@
             ctx.fill();
         }
 
-        // 키보드 리스너 완벽 동기화
+        // 키 바인딩
         window.addEventListener('keydown', function(e) {
             if (e.keyCode === 38 || e.keyCode === 32) {
                 e.preventDefault(); 
-                canvas.focus(); // 키 누를 때 강제 인게임 포커싱
+                canvas.focus();
                 
                 if (!keys.jump) {
                     keys.jump = true;
@@ -535,7 +534,6 @@
             }
         });
 
-        // 마우스 및 터치 이벤트 핸들링 동기화
         canvas.addEventListener('mousedown', function(e) {
             canvas.focus();
             keys.jump = true;
@@ -555,11 +553,6 @@
         });
         window.addEventListener('touchend', function(e) {
             keys.jump = false;
-        });
-
-        // 최초 화면 클릭시 캔버스로 포커스 인계
-        document.addEventListener('click', function() {
-            if(gameState === 'PLAYING') canvas.focus();
         });
     </script>
 </body>

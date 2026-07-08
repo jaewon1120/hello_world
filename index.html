@@ -57,6 +57,7 @@
 
         canvas {
             display: block;
+            outline: none; /* 포커스 테두리 제거 */
         }
 
         .screen {
@@ -141,30 +142,30 @@
     </div>
 
     <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <canvas id="gameCanvas" width="800" height="400" tabindex="1"></canvas>
 
         <div id="start-screen" class="screen active">
             <h2 style="color: #4dabf7;">HOPS JUMPERS</h2>
             <p>공은 자동으로 앞으로 굴러갑니다.<br>키를 꾹 누르면 더 높게, 살짝 누르면 낮게 점프합니다!<br>총 7개의 스테이지가 당신을 기다립니다.</p>
-            <button class="btn" onclick="initGame()">게임 시작 (Up 방향키 / Space)</button>
+            <button class="btn" onclick="initGame(event)">게임 시작 (Up 방향키 / Space)</button>
         </div>
 
         <div id="gameover-screen" class="screen">
             <h2 style="color: #ff6b6b;">GAME OVER</h2>
             <p id="fail-reason">발판에서 떨어졌습니다!</p>
-            <button class="btn" onclick="restartStage()">현재 스테이지 재시작</button>
+            <button class="btn" onclick="restartStage(event)">현재 스테이지 재시작</button>
         </div>
 
         <div id="clear-screen" class="screen">
             <h2 style="color: #69db7c;">STAGE CLEAR!</h2>
             <p id="clear-msg">훌륭합니다! 다음 단계로 나아갑니다.</p>
-            <button class="btn" id="next-btn" onclick="nextStage()">다음 스테이지 시작</button>
+            <button class="btn" id="next-btn" onclick="nextStage(event)">다음 스테이지 시작</button>
         </div>
 
         <div id="ending-screen" class="screen">
             <h2 style="color: #ffd43b;">🎉 ALL STAGES CLEARED! 🎉</h2>
             <p>당신은 진정한 점프의 마스터입니다!<br>7개의 모든 험난한 맵을 완벽하게 정복했습니다.</p>
-            <button class="btn" onclick="resetWholeGame()">처음부터 다시하기</button>
+            <button class="btn" onclick="resetWholeGame(event)">처음부터 다시하기</button>
         </div>
     </div>
 
@@ -176,51 +177,49 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 상태창 UI 엘리먼트
+        // UI 엘리먼트
         const stageIndicator = document.getElementById('stage-indicator');
         const distanceTxt = document.getElementById('distance-txt');
         const progressBar = document.getElementById('progress-bar');
         
-        // 화면 UI 엘리먼트
         const startScreen = document.getElementById('start-screen');
         const gameoverScreen = document.getElementById('gameover-screen');
         const clearScreen = document.getElementById('clear-screen');
         const endingScreen = document.getElementById('ending-screen');
         const failReasonTxt = document.getElementById('fail-reason');
 
-        // 게임 핵심 변수들
+        // 게임 핵심 변수
         let currentStage = 1;
         const maxStage = 7;
         let gameState = 'START'; 
         let gameLoopId;
 
-        // 플레이어 캐릭터 (공) 사양
+        // 플레이어 캐릭터 사양
         let ball = {
             x: 150,
             y: 200,
             radius: 14,
             vy: 0,
-            gravity: 0.55,       // 자연스러운 점프감을 위해 중력 미세 조정
-            jumpForce: -13.0,     // 최대 도약 높이를 위해 기본 점프력 상향
+            gravity: 0.55,       
+            jumpForce: -13.0,     
             isGrounded: false
         };
 
-        // 조작감 개선용 고급 타이밍 시스템 변수
+        // 조작감 개선용 변수
         let keys = { jump: false };
-        let lastJumpPressedTime = 0; // 인풋 버퍼 (마지막 입력 시점)
-        const JUMP_BUFFER_TIME = 100; // 입력 버퍼 유지 시간 (0.1초)
+        let lastJumpPressedTime = 0; 
+        const JUMP_BUFFER_TIME = 100; 
         
-        let lastGroundedTime = 0;    // 코요테 타임 (마지막 지상 시점)
-        const COYOTE_TIME = 80;       // 코요테 타임 유예 시간 (0.08초)
+        let lastGroundedTime = 0;    
+        const COYOTE_TIME = 80;       
 
-        // 카메라 및 맵 전역 변수
+        // 맵 변수
         let mapProgress = 0; 
         let stageLength = 2000; 
         let speed = 4.5; 
         let platforms = [];
         let obstacles = [];
 
-        // 7개 스테이지별 컨셉 정의
         const stageConfigs = {
             1: { name: "1. 기본 훈련장", speed: 4.5, jumpForce: -13.0, color: "#4dabf7", bg: "#1a1c29" },
             2: { name: "2. 좁아지는 길", speed: 5.0, jumpForce: -13.0, color: "#22b8cf", bg: "#142525" },
@@ -231,7 +230,6 @@
             7: { name: "7. 인페르노 디 오리진", speed: 7.0, jumpForce: -14.5, color: "#ff922b", bg: "#29190e" }
         };
 
-        // 맵 생성 함수
         function generateMap(stage) {
             platforms = [];
             obstacles = [];
@@ -273,7 +271,13 @@
             stageLength = currentX + 200; 
         }
 
-        function initGame() {
+        // 포커스를 캔버스로 강제 이동시키는 헬퍼 함수
+        function focusGame() {
+            canvas.focus();
+        }
+
+        function initGame(e) {
+            if(e) e.stopPropagation();
             if(gameState !== 'START') return;
             startScreen.classList.remove('active');
             loadStage(1);
@@ -294,7 +298,8 @@
             ball.vy = 0;
             ball.isGrounded = false;
             
-            // 타이밍 변수 초기화
+            // 키 및 타이밍 상태 완전히 리셋
+            keys.jump = false;
             lastJumpPressedTime = 0;
             lastGroundedTime = 0;
 
@@ -304,6 +309,9 @@
 
             closeAllScreens();
             gameState = 'PLAYING';
+
+            // 버튼 클릭 후 키보드가 바로 먹히도록 포커스 이동
+            setTimeout(focusGame, 10);
 
             if(gameLoopId) cancelAnimationFrame(gameLoopId);
             gameLoopId = requestAnimationFrame(gameLoop);
@@ -319,32 +327,30 @@
             gameLoopId = requestAnimationFrame(gameLoop);
         }
 
-        // 물리 연산 처리
         function updatePhysics() {
             const currentTime = performance.now();
 
-            // 1. 가변 점프 처리 (키를 떼면 위쪽 방향 속도를 급격히 차단)
+            // 가변 점프 물리 계산
             if (!ball.isGrounded && ball.vy < 0 && !keys.jump) {
-                ball.vy += ball.gravity * 1.5; // 키를 안 누르고 상승 중일 땐 가중 중력 부여 (낮은 점프)
+                ball.vy += ball.gravity * 1.5; 
             } else {
-                ball.vy += ball.gravity; // 정상 중력
+                ball.vy += ball.gravity; 
             }
             
             ball.y += ball.vy;
             mapProgress += speed;
 
-            // 2. 인풋 버퍼 & 코요테 타임을 결합한 점프 실행 조건 판별
+            // 인풋 버퍼 & 코요테 타임 판단
             const hasBufferedJump = (currentTime - lastJumpPressedTime) <= JUMP_BUFFER_TIME;
             const isWithinCoyoteTime = (currentTime - lastGroundedTime) <= COYOTE_TIME;
 
             if (hasBufferedJump && (ball.isGrounded || isWithinCoyoteTime)) {
                 ball.vy = ball.jumpForce;
                 ball.isGrounded = false;
-                lastJumpPressedTime = 0; // 버퍼 사용 완료 후 초기화
+                lastJumpPressedTime = 0; 
                 lastGroundedTime = 0;
             }
 
-            // UI 진행도 갱신
             let progressPercent = Math.min((mapProgress / stageLength) * 100, 100);
             progressBar.style.width = `${progressPercent}%`;
             distanceTxt.textContent = `${Math.floor(mapProgress/10)}m / ${Math.floor(stageLength/10)}m`;
@@ -358,7 +364,6 @@
             }
         }
 
-        // 충돌 검사
         function checkCollisions() {
             let ballAbsoluteX = mapProgress + ball.x;
             let currentOnGround = false;
@@ -372,7 +377,7 @@
                         currentOnGround = true;
 
                         if (plat.type === 'bounce') {
-                            ball.vy = -17.5; // 슈퍼 점프대 작동
+                            ball.vy = -17.5; 
                             currentOnGround = false;
                         }
                         break;
@@ -380,13 +385,11 @@
                 }
             }
 
-            // 지상 상태 업데이트 및 코요테 타임 타이머 기록
             ball.isGrounded = currentOnGround;
             if (ball.isGrounded) {
                 lastGroundedTime = performance.now();
             }
 
-            // 가시 충돌
             for (let obs of obstacles) {
                 let obsScreenX = obs.x - mapProgress; 
                 if (ball.x + ball.radius - 4 > obsScreenX && ball.x - ball.radius + 4 < obsScreenX + obs.width) {
@@ -397,14 +400,12 @@
             }
         }
 
-        // 키가 눌렸을 때 핸들러 트리거
         function pressJumpKey() {
             keys.jump = true;
 
             if (gameState === 'PLAYING') {
-                lastJumpPressedTime = performance.now(); // 인풋 버퍼 가동시작
+                lastJumpPressedTime = performance.now(); 
             } else {
-                // UI 스크린 상태에서의 화면 전환 유도
                 if (gameState === 'START') initGame();
                 else if (gameState === 'GAMEOVER') restartStage();
                 else if (gameState === 'CLEAR') nextStage();
@@ -412,7 +413,6 @@
             }
         }
 
-        // 키를 뗐을 때 핸들러 트리거
         function releaseJumpKey() {
             keys.jump = false;
         }
@@ -434,15 +434,18 @@
             }
         }
 
-        function nextStage() {
+        function nextStage(e) {
+            if(e) e.stopPropagation();
             if(currentStage < maxStage) loadStage(currentStage + 1);
         }
 
-        function restartStage() {
+        function restartStage(e) {
+            if(e) e.stopPropagation();
             loadStage(currentStage);
         }
 
-        function resetWholeGame() {
+        function resetWholeGame(e) {
+            if(e) e.stopPropagation();
             endingScreen.classList.remove('active');
             loadStage(1);
         }
@@ -454,11 +457,9 @@
             endingScreen.classList.remove('active');
         }
 
-        // 렌더링 함수
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 패럴랙스 배경
             ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
             for (let i = 0; i < canvas.width + 100; i += 80) {
                 let bgX = (i - (mapProgress * 0.3)) % (canvas.width + 100);
@@ -466,7 +467,6 @@
                 ctx.fillRect(bgX, 50, 40, 150);
             }
 
-            // 발판
             platforms.forEach(plat => {
                 let screenX = plat.x - mapProgress; 
                 if (screenX + plat.width < 0 || screenX > canvas.width) return;
@@ -489,7 +489,6 @@
                 }
             });
 
-            // 가시
             obstacles.forEach(obs => {
                 let screenX = obs.x - mapProgress;
                 if (screenX + obs.width < 0 || screenX > canvas.width) return;
@@ -503,7 +502,6 @@
                 ctx.fill();
             });
 
-            // 플레이어
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
             
@@ -520,11 +518,12 @@
             ctx.fill();
         }
 
-        // 키보드 이벤트 리스너 리팩토링
+        // 전역 키바인딩 핸들러 (윈도우 전체에서 가로챔 방지 및 확실한 트래킹)
         window.addEventListener('keydown', function(e) {
             if (e.keyCode === 38 || e.keyCode === 32) {
                 e.preventDefault(); 
-                if(!keys.jump) pressJumpKey(); // 중복 입력 방지
+                focusGame(); // 키 누를 때 게임 화면으로 포커스 고정
+                if(!keys.jump) pressJumpKey(); 
             }
         });
 
@@ -535,20 +534,24 @@
             }
         });
 
-        // 마우스 및 모바일 터치 대응
+        // 마우스 및 터치 포커싱 동기화
         canvas.addEventListener('mousedown', function(e) {
+            focusGame();
             pressJumpKey();
         });
         window.addEventListener('mouseup', function(e) {
             releaseJumpKey();
         });
         canvas.addEventListener('touchstart', function(e) {
-            e.preventDefault();
+            focusGame();
             pressJumpKey();
         });
         window.addEventListener('touchend', function(e) {
             releaseJumpKey();
         });
+
+        // 최초 실행 시 기본 포커스 부여
+        focusGame();
     </script>
 </body>
 </html>

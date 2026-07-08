@@ -2,911 +2,236 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>탑뷰 슈팅 서바이벌 - 보스 격파 스펙업 반영</title>
+    <title>Mini Survivor</title>
     <style>
         body {
             margin: 0;
-            padding: 0;
-            background-color: #0b0c10;
-            color: #fff;
-            font-family: 'Malgun Gothic', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
             overflow: hidden;
-            user-select: none;
+            background-color: #333;
+            color: white;
+            font-family: sans-serif;
         }
-
-        h1 {
-            margin: 5px 0;
-            font-size: 1.6rem;
-            color: #66fcf1;
-            text-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
-        }
-
-        #ui-container {
-            width: 800px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 5px;
-            font-size: 1rem;
-            font-weight: bold;
-        }
-
-        #game-wrapper {
-            position: relative;
-            width: 800px;
-            height: 600px;
-            border: 3px solid #1f2833;
-            border-radius: 6px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-            background-color: #1f2833;
-        }
-
-        canvas {
+        #gameCanvas {
             display: block;
-            background-color: #121824;
-            cursor: crosshair;
+            background-color: #222;
         }
-
-        .overlay-screen {
+        #ui {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(18, 24, 36, 0.9);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            pointer-events: none; /* 클릭 방지 */
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #aaa;
+            font-size: 14px;
             pointer-events: none;
-            transition: opacity 0.2s ease;
-            text-align: center;
-            z-index: 10;
-        }
-
-        .overlay-screen.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .overlay-screen h2 {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-        }
-
-        .btn {
-            background: #66fcf1;
-            color: #0b0c10;
-            border: none;
-            padding: 12px 35px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            box-shadow: 0 4px 14px rgba(102, 252, 241, 0.3);
-            transition: all 0.2s;
-        }
-
-        .btn:hover {
-            background: #45a29e;
-            color: #fff;
-            transform: translateY(-2px);
-        }
-
-        #upgrade-container {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-            flex-wrap: nowrap;
-        }
-
-        .upgrade-card {
-            background: #1f2833;
-            border: 2px solid #45a29e;
-            border-radius: 6px;
-            padding: 12px;
-            width: 175px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-sizing: border-box;
-        }
-
-        .upgrade-card:hover {
-            border-color: #66fcf1;
-            background: #273242;
-            transform: translateY(-4px);
-        }
-
-        .upgrade-title {
-            color: #66fcf1;
-            font-weight: bold;
-            font-size: 0.95rem;
-            margin-bottom: 8px;
-        }
-
-        .upgrade-desc {
-            font-size: 0.8rem;
-            color: #c5a880;
-            line-height: 1.4;
-        }
-
-        #boss-warning {
-            position: absolute;
-            top: 20%;
-            width: 100%;
-            text-align: center;
-            color: #ff3e3e;
-            font-size: 2.5rem;
-            font-weight: bold;
-            text-shadow: 0 0 20px #ff0000;
-            display: none;
-            z-index: 5;
-            animation: blink 0.5s infinite alternate;
-        }
-
-        #boss-timer-ui {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 62, 62, 0.2);
-            border: 2px solid #ff3e3e;
-            padding: 5px 20px;
-            border-radius: 20px;
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #ff3e3e;
-            display: none;
-            z-index: 5;
-        }
-
-        @keyframes blink {
-            0% { opacity: 0.2; }
-            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-    <h1>TOP-DOWN SURVIVAL: ENEMY EVOLUTION</h1>
+<div id="ui">
+    <div>Score: <span id="score">0</span></div>
+    <div>Time: <span id="time">0</span>s</div>
+</div>
+<div id="controls-hint">WASD to move</div>
 
-    <div id="ui-container">
-        <div>HP: <span id="ui-hp" style="color:#ff6b6b;">❤️❤️❤️</span> <span id="ui-shield" style="color:#339af0;"></span></div>
-        <div>무기: <span id="ui-weapon" style="color:#a9e34b;">기본 권총</span> (<span id="ui-ammo" style="color:#ffd43b;">12/12</span>)</div>
-        <div>LEVEL: <span id="ui-level" style="color:#66fcf1;">1</span></div>
-        <div>SCORE: <span id="ui-score" style="color:#ffd43b;">0</span></div>
-        <div>EVO: <span id="ui-evo" style="color:#ff6b6b;">스택 0</span></div>
-    </div>
+<canvas id="gameCanvas"></canvas>
 
-    <div id="game-wrapper">
-        <div id="boss-warning">⚠️ WARNING: BOSS APPROACHING ⚠️</div>
-        <div id="boss-timer-ui">보스전 제한시간: 120.0s</div>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+    // --- 설정 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
 
-        <div id="start-screen" class="overlay-screen active">
-            <h2 style="color: #66fcf1;">DRONE & SHIELD UPDATE</h2>
-            <p style="color: #c5a8c8; margin-bottom: 25px; line-height: 1.6;">
-                WASD 이동 / 마우스 조준 / 좌클릭 연사<br>
-                <span style="color:#ff8787; font-weight:bold;">⚠️ 경고: 보스를 격파할 때마다 일반 몬스터의 맷집과 속도가 영구히 상승합니다!</span>
-            </p>
-            <button class="btn" onclick="startGame()">전장 진입</button>
-        </div>
+    let width, height;
+    resize();
+    window.addEventListener('resize', resize);
 
-        <div id="levelup-screen" class="overlay-screen">
-            <h2 style="color: #ffd43b;" id="levelup-title">LEVEL UP!</h2>
-            <p id="levelup-sub">강화 파츠를 장착하세요.</p>
-            <div id="upgrade-container"></div>
-        </div>
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
 
-        <div id="gameover-screen" class="overlay-screen">
-            <h2 style="color: #ff6b6b;" id="gameover-title">GAME OVER</h2>
-            <p id="gameover-reason"></p>
-            <p>버틴 시간: <span id="result-time" style="color:#66fcf1;">0s</span><br>
-            최종 점수: <span id="result-score" style="color:#ffd43b;">0</span></p>
-            <button class="btn" onclick="startGame()">다시 도전하기 (R)</button>
-        </div>
-    </div>
+    let player = { x: width / 2, y: height / 2, radius: 15, speed: 5 };
+    let enemies = [];
+    let projectiles = [];
+    let keys = {};
+    let score = 0;
+    let gameTime = 0;
+    let lastEnemySpawnTime = 0;
+    let isGameOver = false;
+    let animationId;
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+    // --- 입력 처리 ---
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
 
-        const uiHp = document.getElementById('ui-hp');
-        const uiShield = document.getElementById('ui-shield');
-        const uiWeapon = document.getElementById('ui-weapon');
-        const uiAmmo = document.getElementById('ui-ammo');
-        const uiLevel = document.getElementById('ui-level');
-        const uiScore = document.getElementById('ui-score');
-        const uiEvo = document.getElementById('ui-evo');
-        const startScreen = document.getElementById('start-screen');
-        const levelupScreen = document.getElementById('levelup-screen');
-        const gameoverScreen = document.getElementById('gameover-screen');
-        const upgradeContainer = document.getElementById('upgrade-container');
-        const resultTime = document.getElementById('result-time');
-        const resultScore = document.getElementById('result-score');
-        const bossWarning = document.getElementById('boss-warning');
-        const bossTimerUi = document.getElementById('boss-timer-ui');
-        const gameoverTitle = document.getElementById('gameover-title');
-        const gameoverReason = document.getElementById('gameover-reason');
-        const levelupTitle = document.getElementById('levelup-title');
-        const levelupSub = document.getElementById('levelup-sub');
+    // --- 게임 객체 생성기 ---
+    function spawnEnemy() {
+        let side = Math.floor(Math.random() * 4); // 0:top, 1:right, 2:bottom, 3:left
+        let ex, ey;
+        let r = 20;
 
-        let gameState = 'START';
-        let score = 0; let gameTime = 0; let lastTime = 0; let spawnTimer = 0; let spawnInterval = 1600;
-        let bossSpawnTimer = 0; const BOSS_INTERVAL = 45; 
-        let isBossActive = false; let bossTimeLeft = 120; let bossIndex = 0; 
-        let bossDefeatCount = 0; // ⭐ 보스 격파 횟수 카운터 변수 추가
-        const bossNames = ["네크로맨서", "타이탄", "하이브마인드", "블링크 자이언트", "둠스데이"];
+        if (side === 0) { ex = Math.random() * width; ey = -r; }
+        else if (side === 1) { ex = width + r; ey = Math.random() * height; }
+        else if (side === 2) { ex = Math.random() * width; ey = height + r; }
+        else { ex = -r; ey = Math.random() * height; }
 
-        let levelUpQueue = []; 
-        let invincibilityTimer = 0; let shakeIntensity = 0;
-        let timeWarpTimer = 0; 
-        let lastStandUsed = false; 
+        enemies.push({ x: ex, y: ey, radius: r, speed: 2.5 });
+    }
 
-        const keys = { w: false, a: false, s: false, d: false };
-        const mouse = { x: 0, y: 0, isPressed: false };
-
-        let player; let bullets = []; let enemyBullets = []; let enemies = []; let gems = []; let items = []; let particles = []; 
-        let drones = [];
-
-        const generalUpgrades = [
-            { type: 'HEAL', title: '구급 상자', desc: '체력을 1 회복합니다.', weight: 30 },
-            { type: 'PIERCE', title: '관통탄 개조', desc: '총알 관통 횟수 +1', weight: 30 },
-            { type: 'SHIELD', title: '에너지 보호막', desc: '보호막 실드를 +1 추가합니다.', weight: 30 },
-            { type: 'FIRERATE', title: '고속 연사 기어', desc: '연사 속도 +20%', weight: 30 },
-            { type: 'DAMAGE', title: '강화 화약', desc: '총알 대미지 +1', weight: 30 },
-            { type: 'RELOAD', title: '퀵 매거진', desc: '장전 속도 +25% 단축', weight: 30 },
-
-            { type: 'R_DRONE', title: '🤖 [희귀] 원거리 드론', desc: '주변 적을 자동으로 추적 사격하는 서포트 드론 생성.', weight: 6 },
-            { type: 'M_DRONE', title: '💥 [희귀] 근거리 돌격 드론', desc: '차징 후 타겟에게 돌격하여 경로상의 적을 꿰뚫어 찢어발깁니다.', weight: 6 },
-            { type: 'TIME_WARP', title: '🌀 [희귀] 시공간 왜곡 장치', desc: '피격 시 3초간 적들과 투사체의 속도를 60% 둔화시킵니다.', weight: 6 },
-            { type: 'GAMBLE', title: '🪙 [희귀] 도박사의 코인', desc: '공격 적중 시 7% 확율로 4배 크리티컬 대미지가 터집니다.', weight: 6 },
-            { type: 'LAST_STAND', title: '🎒 [희귀] 응급 예비 배터리', desc: '빈사 상태 돌입 시 충격파를 내뿜고 실드를 +2 얻습니다. (1회)', weight: 6 }
-        ];
-
-        const bossUpgrades = [
-            { type: 'DRONE_BUFF', title: '🏅 보스: 하이브마인드 프로토콜', desc: '보유 드론이 3개 이상일 때 드론 공격속도 2배 버프 및 플레이어 이속 +20%' },
-            { type: 'SHIELD_BUFF', title: '🏅 보스: 오버차지 컨버터', desc: '보유 중인 실드 1개당 플레이어의 총 대미지가 +1.5 증가합니다.' },
-            { type: 'HEAL_BUFF', title: '🏅 보스: 복수의 불꽃 레일건', desc: '피격될 때마다 영구 대미지 +1, 풀피 회복 시 10초간 무한 탄창.' },
-            { type: 'BULLET_BUFF', title: '🏅 보스: 탄도학 마스터 패키지', desc: '관통력 +2 증가, 적을 관통할 때마다 양옆으로 유도 파편 탄환 2개 분출.' },
-            { type: 'KILL_BUFF', title: '🏅 보스: 영혼 수확자의 모래시계', desc: '적 15마리 처치 시마다 무작위 드론 쿨타임 초기화 또는 3초간 완벽 무적.' }
-        ];
-
-        class RangeDrone {
-            constructor() { this.angle = Math.random()*Math.PI*2; this.cooldown = 0; this.type="RANGE"; }
-            update(dt, idx) {
-                this.angle += 0.03;
-                this.x = player.x + Math.cos(this.angle + idx) * 45;
-                this.y = player.y + Math.sin(this.angle + idx) * 45;
-                
-                let interval = 700;
-                if(player.bossSynergies.includes('DRONE_BUFF') && drones.length >= 3) interval = 350;
-
-                if (this.cooldown > 0) this.cooldown -= dt;
-                if (this.cooldown <= 0 && enemies.length > 0) {
-                    let target = enemies[Math.floor(Math.random()*enemies.length)];
-                    let d = Math.hypot(target.x - this.x, target.y - this.y);
-                    if(d < 400) {
-                        let a = Math.atan2(target.y - this.y, target.x - this.x);
-                        bullets.push(new Bullet(this.x, this.y, a, 1, 1, '#66fcf1'));
-                        this.cooldown = interval;
-                    }
-                }
-            }
-            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, 6, 0, Math.PI*2); ctx.fillStyle = '#66fcf1'; ctx.fill(); }
+    function shoot() {
+        // 가장 가까운 적 찾기 (간단 버전: 첫 번째 적)
+        if (enemies.length > 0) {
+            let target = enemies[0];
+            let angle = Math.atan2(target.y - player.y, target.x - player.x);
+            projectiles.push({
+                x: player.x,
+                y: player.y,
+                radius: 5,
+                speed: 10,
+                dx: Math.cos(angle) * 10,
+                dy: Math.sin(angle) * 10
+            });
         }
+    }
 
-        class MeleeDrone {
-            constructor() {
-                this.angle = Math.random()*Math.PI*2; this.type="MELEE";
-                this.state = 'ORBIT'; this.timer = 0; this.targetX = 0; this.targetY = 0; this.dashVx = 0; this.dashVy = 0;
-            }
-            update(dt, idx) {
-                let baseInterval = 2800;
-                if(player.bossSynergies.includes('DRONE_BUFF') && drones.length >= 3) baseInterval = 1400;
+    // --- 메인 업데이트 루프 ---
+    function update(timestamp) {
+        if (isGameOver) return;
 
-                if (this.state === 'ORBIT') {
-                    this.angle += 0.02;
-                    this.x = player.x + Math.cos(this.angle + idx) * 50;
-                    this.y = player.y + Math.sin(this.angle + idx) * 50;
-                    this.timer += dt;
-                    if (this.timer >= baseInterval && enemies.length > 0) {
-                        let closest = null; let minD = 9999;
-                        enemies.forEach(e => { let d = Math.hypot(e.x-this.x, e.y-this.y); if(d<minD){minD=d; closest=e;} });
-                        if (closest) {
-                            this.state = 'LOCK'; this.timer = 0;
-                            this.targetX = closest.x; this.targetY = closest.y;
-                        }
-                    }
-                } else if (this.state === 'LOCK') {
-                    this.timer += dt;
-                    if (this.timer >= 600) {
-                        this.state = 'DASH'; this.timer = 0;
-                        let a = Math.atan2(this.targetY - this.y, this.targetX - this.x);
-                        this.dashVx = Math.cos(a) * 14; this.dashVy = Math.sin(a) * 14;
-                    }
-                } else if (this.state === 'DASH') {
-                    this.x += this.dashVx; this.y += this.dashVy;
-                    this.timer += dt;
-                    enemies.forEach(e => {
-                        if (Math.hypot(e.x - this.x, e.y - this.y) < e.radius + 15) {
-                            e.hp -= 4; if(e.hp <= 0) e.toRemove = true;
-                        }
-                    });
-                    if (this.timer >= 500) { this.state = 'ORBIT'; this.timer = 0; }
-                }
-            }
-            draw() {
-                if (this.state === 'LOCK') {
-                    ctx.save(); ctx.strokeStyle = 'rgba(255, 107, 107, 0.4)'; ctx.lineWidth = 1.5;
-                    ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.targetX, this.targetY); ctx.stroke(); ctx.restore();
-                }
-                ctx.beginPath(); ctx.arc(this.x, this.y, 7, 0, Math.PI*2);
-                ctx.fillStyle = this.state === 'DASH' ? '#ff6b6b' : (this.state === 'LOCK' ? '#fab005' : '#cc5de8');
-                ctx.fill();
-            }
+        ctx.clearRect(0, 0, width, height);
+
+        // 시간 및 점수 업데이트
+        gameTime = Math.floor(timestamp / 1000);
+        timeEl.innerText = gameTime;
+
+        // 플레이어 이동
+        if (keys['KeyW'] && player.y - player.radius > 0) player.y -= player.speed;
+        if (keys['KeyS'] && player.y + player.radius < height) player.y += player.speed;
+        if (keys['KeyA'] && player.x - player.radius > 0) player.x -= player.speed;
+        if (keys['KeyD'] && player.x + player.radius < width) player.x += player.speed;
+
+        // 플레이어 그리기
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#00f'; // 파란색
+        ctx.fill();
+        ctx.closePath();
+
+        // 자동 공격 (매초)
+        if (timestamp - lastEnemySpawnTime > 1000) { // 편의상 스폰 타이머 재활용
+             shoot();
+             lastEnemySpawnTime = timestamp;
         }
-
-        class RecoveryItem {
-            constructor(x, y) { this.x = x; this.y = y; this.radius = 10; this.toRemove = false; }
-            update() {
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-                if (dist < 60) { this.x += ((player.x - this.x) / dist) * 3; this.y += ((player.y - this.y) / dist) * 3; }
-                if (dist < this.radius + player.radius) {
-                    if (player.hp < player.maxHp) player.hp++;
-                    if (player.hp === player.maxHp && player.bossSynergies.includes('HEAL_BUFF')) {
-                        player.infiniteAmmoTimer = 10000;
-                    }
-                    this.toRemove = true; updateHpUi();
-                }
-            }
-            draw() {
-                ctx.save(); ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = '#2b8a3e'; ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.fillRect(this.x - 2, this.y - 7, 4, 14); ctx.fillRect(this.x - 7, this.y - 2, 14, 4); ctx.restore();
-            }
-        }
-
-        class Particle {
-            constructor(x, y, color, isBossDebris = false) {
-                this.x = x; this.y = y; this.color = color;
-                const angle = Math.random() * Math.PI * 2;
-                const speed = isBossDebris ? (Math.random() * 6 + 2) : (Math.random() * 3 + 1);
-                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
-                this.radius = isBossDebris ? Math.random() * 5 + 2 : Math.random() * 3 + 1;
-                this.alpha = 1; this.decay = isBossDebris ? Math.random() * 0.01 + 0.008 : Math.random() * 0.03 + 0.02;
-            }
-            update() { this.x += this.vx; this.y += this.vy; this.alpha -= this.decay; }
-            draw() { ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore(); }
-        }
-
-        class EnemyBullet {
-            constructor(x, y, angle, speed, color, radius = 6) {
-                this.x = x; this.y = y; this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
-                this.radius = radius; this.color = color; this.toRemove = false;
-            }
-            update(dt) {
-                let speedMod = 1.0;
-                if (timeWarpTimer > 0) speedMod = 0.4;
-
-                this.x += this.vx * speedMod; this.y += this.vy * speedMod;
-                if (this.x < -20 || this.x > canvas.width + 20 || this.y < -20 || this.y > canvas.height + 20) this.toRemove = true;
-                if (Math.hypot(player.x - this.x, player.y - this.y) < this.radius + player.radius) { this.toRemove = true; playerHit(); }
-            }
-            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); }
-        }
-
-        class Player {
-            constructor(x, y) {
-                this.x = x; this.y = y; this.radius = 15;
-                this.baseSpeed = 3.3; this.hp = 3; this.maxHp = 3; this.shield = 0;
-                this.bulletPierce = 1; this.exp = 0; this.level = 1; this.nextExp = 7;
-
-                this.weaponType = 'NORMAL'; this.damageBonus = 0; this.shootCooldown = 0;
-                this.baseInterval = 300; this.fireRateMod = 1.0;
-                this.maxAmmo = 12; this.currentAmmo = 12;
-                this.baseReloadTime = 800; this.reloadSpeedMod = 1.0; this.reloadTimer = 0; this.isReloading = false;
-
-                this.gambleActive = false; 
-                this.bossSynergies = []; 
-                this.infiniteAmmoTimer = 0;
-                this.invincibleTimer = 0;
-                this.killCount = 0;
-            }
-            get speed() { 
-                let s = this.baseSpeed;
-                if (this.bossSynergies.includes('DRONE_BUFF') && drones.length >= 3) s += 0.66;
-                return s; 
-            }
-            get shootInterval() { return this.baseInterval / this.fireRateMod; }
-            get reloadTime() { return this.baseReloadTime / this.reloadSpeedMod; }
-
-            update(dt) {
-                let moveX = 0; let moveY = 0;
-                if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
-                if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
-                if (moveX !== 0 && moveY !== 0) { moveX *= 0.7071; moveY *= 0.7071; }
-                this.x += moveX * this.speed; this.y += moveY * this.speed;
-                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
-                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
-
-                if (this.infiniteAmmoTimer > 0) this.infiniteAmmoTimer -= dt;
-                if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
-
-                drones.forEach((d, idx) => d.update(dt, idx));
-
-                if (this.isReloading) {
-                    this.reloadTimer -= dt;
-                    if (this.reloadTimer <= 0) { this.currentAmmo = this.maxAmmo; this.isReloading = false; updateAmmoUi(); }
-                }
-
-                if (this.shootCooldown > 0) this.shootCooldown -= dt;
-                
-                if (mouse.isPressed && this.shootCooldown <= 0 && !this.isReloading) {
-                    if (this.infiniteAmmoTimer > 0) {
-                        this.shoot(); this.shootCooldown = this.shootInterval;
-                    } else if (this.currentAmmo > 0) {
-                        this.shoot(); this.currentAmmo--; updateAmmoUi(); this.shootCooldown = this.shootInterval;
-                        if (this.currentAmmo <= 0) this.startReload();
-                    } else { this.startReload(); }
-                }
-            }
-
-            startReload() {
-                if (this.isReloading) return;
-                this.isReloading = true; this.reloadTimer = this.reloadTime;
-            }
-
-            shoot() {
-                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
-                let finalDmg = (this.weaponType === 'SHOTGUN' ? 2 : 1) + this.damageBonus;
-                
-                if (this.bossSynergies.includes('SHIELD_BUFF')) {
-                    finalDmg += Math.floor(this.shield * 1.5);
-                }
-
-                if (this.gambleActive && Math.random() < 0.07) {
-                    finalDmg *= 4;
-                }
-
-                let finalPierce = this.bulletPierce;
-                if (this.bossSynergies.includes('BULLET_BUFF')) finalPierce += 2;
-
-                if (this.weaponType === 'SHOTGUN') {
-                    const spread = 0.12;
-                    for(let i = -2; i <= 2; i++) {
-                        bullets.push(new Bullet(this.x, this.y, angle + (i * spread), finalDmg, finalPierce));
-                    }
-                } else {
-                    bullets.push(new Bullet(this.x, this.y, angle, finalDmg, finalPierce));
-                }
-            }
-
-            changeWeapon(type) {
-                this.weaponType = type;
-                if (type === 'RIFLE') { this.baseInterval = 110; this.maxAmmo = 30; this.baseReloadTime = 1500; uiWeapon.textContent = "돌격 소총"; }
-                else if (type === 'SHOTGUN') { this.baseInterval = 650; this.maxAmmo = 8; this.baseReloadTime = 2500; uiWeapon.textContent = "샷건"; }
-                this.currentAmmo = this.maxAmmo; this.isReloading = false; updateWeaponColorUi(); updateAmmoUi();
-            }
-
-            gainExp(amount) {
-                this.exp += amount;
-                while (this.exp >= this.nextExp) {
-                    this.exp -= this.nextExp; this.level++; this.nextExp = Math.floor(this.nextExp * 1.4) + 6;
-                    levelUpQueue.push({ type: 'NORMAL_LVUP', level: this.level });
-                }
-                if (levelUpQueue.length > 0 && gameState === 'PLAYING') processNextQueue();
-            }
-
-            draw() {
-                if (((invincibilityTimer > 0) || (this.invincibleTimer > 0)) && Math.floor(performance.now() / 100) % 2 === 0) return;
-                
-                ctx.save(); ctx.translate(this.x, this.y);
-                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x); ctx.rotate(angle);
-                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#66fcf1'; ctx.shadowBlur = 10; ctx.shadowColor = '#66fcf1'; ctx.fill(); ctx.shadowBlur = 0;
-                
-                if (this.weaponType === 'RIFLE') ctx.fillStyle = '#ff922b';
-                else if (this.weaponType === 'SHOTGUN') ctx.fillStyle = '#fab005';
-                else ctx.fillStyle = '#1f2833';
-                ctx.fillRect(0, -4, 22, 8); ctx.restore();
-
-                drones.forEach(d => d.draw());
-
-                if (this.isReloading) {
-                    const barW = 34; const barH = 4; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(this.x - barW/2, this.y - this.radius - 14, barW, barH);
-                    const progress = 1 - (this.reloadTimer / this.reloadTime); ctx.fillStyle = '#66fcf1'; ctx.fillRect(this.x - barW/2, this.y - this.radius - 14, barW * progress, barH);
-                }
-            }
-        }
-
-        class Bullet {
-            constructor(x, y, angle, damage, pierce, color = '#ffd43b') {
-                this.x = x; this.y = y; this.speed = 10; this.vx = Math.cos(angle) * this.speed; this.vy = Math.sin(angle) * this.speed;
-                this.radius = 3.5; this.damage = damage; this.pierce = pierce; this.toRemove = false; this.color = color;
-            }
-            update() { 
-                this.x += this.vx; this.y += this.vy; 
-                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.toRemove = true; 
-            }
-            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); }
-        }
-
-        class Enemy {
-            constructor(x, y, type) {
-                this.x = x; this.y = y; this.type = type; this.toRemove = false; this.isBoss = type.startsWith('BOSS_');
-                this.abilityTimer = 0; this.bossName = ""; this.shootCooldown = Math.random() * 2000;
-
-                // ⭐ 기본 몬스터 스펙 세팅 후 보스 격파 스택 보너스 수식 적용
-                if (type === 'FAST') { 
-                    this.radius = 11; 
-                    this.speed = 2.6 + (bossDefeatCount * 0.15); 
-                    this.hp = Math.floor(1 * (1 + bossDefeatCount * 0.3)); 
-                    this.color = '#ff6b6b'; this.expValue = 1; 
-                }
-                else if (type === 'SHOOTER') { 
-                    this.radius = 14; 
-                    this.speed = 1.2 + (bossDefeatCount * 0.08); 
-                    this.hp = Math.floor(2 * (1 + bossDefeatCount * 0.3)); 
-                    this.color = '#339af0'; this.expValue = 2; 
-                }
-                else if (type === 'BOSS_NECROMANCER') { this.radius = 32; this.speed = 0.8; this.hp = 45; this.color = '#cc5de8'; this.expValue = 20; this.bossName = bossNames[0]; }
-                else if (type === 'BOSS_TITAN') { this.radius = 36; this.speed = 0.6; this.hp = 70; this.color = '#fcc419'; this.expValue = 25; this.bossName = bossNames[1]; }
-                else if (type === 'BOSS_HIVEMIND') { this.radius = 34; this.speed = 0.7; this.hp = 55; this.color = '#ff922b'; this.expValue = 25; this.bossName = bossNames[2]; }
-                else if (type === 'BOSS_BLINK') { this.radius = 35; this.speed = 1.0; this.hp = 60; this.color = '#20c997'; this.expValue = 30; this.bossName = bossNames[3]; }
-                else if (type === 'BOSS_DOOMSDAY') { this.radius = 38; this.speed = 0.5; this.hp = 85; this.color = '#f03e3e'; this.expValue = 40; this.bossName = bossNames[4]; }
-                else { 
-                    this.radius = 15; 
-                    this.speed = 1.6 + (bossDefeatCount * 0.12); 
-                    this.hp = Math.floor(3 * (1 + bossDefeatCount * 0.3)); 
-                    this.color = '#51cf66'; this.expValue = 2; 
-                }
-                
-                // 최소 체력 보장 (버림 연산으로 0이 되는 것 방지)
-                if(this.hp < 1) this.hp = 1;
-                this.maxHp = this.hp;
-            }
-
-            update(dt) {
-                let speedMod = 1.0;
-                if (timeWarpTimer > 0) speedMod = 0.4;
-
-                const dx = player.x - this.x; const dy = player.y - this.y; const dist = Math.hypot(dx, dy);
-                if (this.type === 'SHOOTER') {
-                    if (dist > 250) { this.x += (dx / dist) * this.speed * speedMod; this.y += (dy / dist) * this.speed * speedMod; }
-                    else if (dist < 180) { this.x -= (dx / dist) * this.speed * speedMod; this.y -= (dy / dist) * this.speed * speedMod; }
-                    this.shootCooldown += dt;
-                    if (this.shootCooldown >= 2500) { enemyBullets.push(new EnemyBullet(this.x, this.y, Math.atan2(player.y - this.y, player.x - this.x), 4.5, '#339af0')); this.shootCooldown = 0; }
-                } else { 
-                    if (dist > 0) { this.x += (dx / dist) * this.speed * speedMod; this.y += (dy / dist) * this.speed * speedMod; } 
-                }
-
-                if (dist < this.radius + player.radius) playerHit();
-
-                if (this.isBoss) {
-                    this.abilityTimer += dt;
-                    if (this.type === 'BOSS_NECROMANCER' && this.abilityTimer >= 4000) {
-                        for(let i=0; i<4; i++) enemies.push(new Enemy(this.x + (Math.random()-0.5)*80, this.y + (Math.random()-0.5)*80, 'FAST'));
-                        this.abilityTimer = 0;
-                    } else if (this.type === 'BOSS_TITAN' && this.abilityTimer >= 2200) {
-                        for (let i = 0; i < 8; i++) enemyBullets.push(new EnemyBullet(this.x, this.y, (Math.PI / 4) * i, 3.5, '#fcc419'));
-                        this.abilityTimer = 0;
-                    }
-                }
-            }
-
-            draw() {
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = '#0b0c10'; ctx.lineWidth = 2; ctx.stroke();
-                if (this.isBoss) {
-                    const barW = this.radius * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 15, barW, 6); ctx.fillStyle = '#ff3e3e'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 15, barW * (this.hp / this.maxHp), 6);
-                }
-            }
-        }
-
-        class ExpGem {
-            constructor(x, y, value) { this.x = x; this.y = y; this.radius = 5; this.value = value; this.toRemove = false; }
-            update() {
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-                if (dist < 90) { this.x += ((player.x - this.x) / dist) * 5.5; this.y += ((player.y - this.y) / dist) * 5.5; }
-                if (dist < this.radius + player.radius) { player.gainExp(this.value); this.toRemove = true; score += this.value * 10; }
-            }
-            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = '#ffd43b'; ctx.fill(); }
-        }
-
-        function playerHit() {
-            if (invincibilityTimer > 0 || player.invincibleTimer > 0 || gameState !== 'PLAYING') return;
-            shakeIntensity = 12; invincibilityTimer = 1200;
-            
-            if (generalUpgrades.some(u => u.type === 'TIME_WARP') && Math.random() < 0.5) {
-                timeWarpTimer = 3000;
-            }
-
-            if (player.shield > 0) {
-                player.shield--;
-            } else {
-                player.hp--;
-                if (player.bossSynergies.includes('HEAL_BUFF')) {
-                    player.damageBonus += 1;
-                }
-            }
-
-            if (player.hp <= 1 && !lastStandUsed) {
-                lastStandUsed = true;
-                player.shield += 2;
-                shakeIntensity = 20;
-                for(let i=0; i<30; i++) particles.push(new Particle(player.x, player.y, '#339af0', true));
-            }
-
-            updateHpUi();
-            if (player.hp <= 0) handleGameOver('HP_ZERO');
-        }
-
-        function updateHpUi() {
-            let heartStr = ""; for(let i=0; i<player.maxHp; i++) heartStr += (i < player.hp) ? "❤️" : "🖤";
-            uiHp.textContent = heartStr;
-            let shieldStr = ""; for(let i=0; i<player.shield; i++) shieldStr += "🛡️";
-            uiShield.textContent = shieldStr;
-        }
-        function updateAmmoUi() { uiAmmo.textContent = player.isReloading ? "RELOADING..." : `${player.currentAmmo}/${player.maxAmmo}`; }
-        function updateWeaponColorUi() { if (player.weaponType === 'RIFLE') uiWeapon.style.color = '#ff922b'; else if (player.weaponType === 'SHOTGUN') uiWeapon.style.color = '#fab005'; }
         
-        // ⭐ 진화 스택 UI 업데이트 기능
-        function updateEvoUi() {
-            uiEvo.textContent = `스택 ${bossDefeatCount}`;
-            if(bossDefeatCount > 0) uiEvo.style.color = '#ff3e3e';
-            else uiEvo.style.color = '#ff6b6b';
-        }
+        // 자동 공격 (고정 딜레이) - 위 스폰 타이밍과 겹쳐서 수정
+        // 더 정확한 쿨타임 관리 필요, 일단 간단 버전 유지
 
-        function createExplosion(x, y, color, isBoss = false) {
-            const count = isBoss ? 70 : 12; for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color, isBoss));
-            if (isBoss) { 
-                shakeIntensity = 25; isBossActive = false; bossTimerUi.style.display = 'none'; 
-                
-                // ⭐ 보스 격파 시 진화 스택 증가 및 알림 처리
-                bossDefeatCount++;
-                updateEvoUi();
+        // 투사체 관리
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            let p = projectiles[i];
+            p.x += p.dx;
+            p.y += p.dy;
 
-                levelUpQueue.push({ type: 'BOSS_REWARD' });
-                processNextQueue();
-            }
-        }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff0'; // 노란색
+            ctx.fill();
+            ctx.closePath();
 
-        function spawnBoss() {
-            const currentBossType = ['BOSS_NECROMANCER', 'BOSS_TITAN', 'BOSS_HIVEMIND', 'BOSS_BLINK', 'BOSS_DOOMSDAY'][bossIndex % 5];
-            const currentBossName = bossNames[bossIndex % 5]; bossIndex++;
-            bossWarning.textContent = `⚠️ BOSS: [${currentBossName}] 등장을 감지함 ⚠️`; bossWarning.style.display = 'block';
-            setTimeout(() => { bossWarning.style.display = 'none'; }, 2500);
-            enemies.push(new Enemy(Math.random() < 0.5 ? -40 : canvas.width + 40, Math.random() * canvas.height, currentBossType));
-            isBossActive = true; bossTimeLeft = 120; bossTimerUi.style.display = 'block';
-        }
-
-        function spawnEnemy() {
-            if (isBossActive) return;
-            let spawnX, spawnY;
-            if (Math.random() < 0.5) { spawnX = Math.random() < 0.5 ? -30 : canvas.width + 30; spawnY = Math.random() * canvas.height; }
-            else { spawnX = Math.random() * canvas.width; spawnY = Math.random() < 0.5 ? -30 : canvas.height + 30; }
-            const rand = Math.random(); let type = 'NORMAL';
-            if (rand < 0.25) type = 'FAST'; else if (rand < 0.45) type = 'SHOOTER';
-            enemies.push(new Enemy(spawnX, spawnY, type));
-        }
-
-        function getRandomGeneralUpgrades(count) {
-            let pool = [];
-            while(pool.length < count) {
-                let totalWeight = generalUpgrades.reduce((s, u) => s + u.weight, 0);
-                let rng = Math.random() * totalWeight;
-                let currentSum = 0;
-                for(let up of generalUpgrades) {
-                    currentSum += up.weight;
-                    if(rng <= currentSum) {
-                        if(!pool.includes(up)) pool.push(up);
-                        break;
-                    }
-                }
-            }
-            return pool;
-        }
-
-        function startGame() {
-            score = 0; gameTime = 0; spawnTimer = 0; bossSpawnTimer = 0; spawnInterval = 1600; isBossActive = false; shakeIntensity = 0; invincibilityTimer = 0; bossIndex = 0; timeWarpTimer = 0; lastStandUsed = false;
-            bossDefeatCount = 0; // ⭐ 재시작 시 스택 초기화
-            updateEvoUi();
-            levelUpQueue = []; bullets = []; enemyBullets = []; enemies = []; gems = []; items = []; particles = []; drones = [];
-            player = new Player(canvas.width / 2, canvas.height / 2);
-            updateHpUi(); updateAmmoUi(); uiWeapon.textContent = "기본 권총"; uiWeapon.style.color = "#a9e34b";
-            startScreen.classList.remove('active'); levelupScreen.classList.remove('active'); gameoverScreen.classList.remove('active'); bossWarning.style.display = 'none'; bossTimerUi.style.display = 'none';
-            gameState = 'PLAYING'; lastTime = performance.now(); canvas.focus();
-        }
-
-        function processNextQueue() {
-            if (levelUpQueue.length === 0) {
-                levelupScreen.classList.remove('active'); gameState = 'PLAYING'; lastTime = performance.now(); return;
+            // 화면 밖 투사체 제거
+            if (p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
+                projectiles.splice(i, 1);
+                continue;
             }
 
-            gameState = 'LEVELUP'; levelupScreen.classList.add('active'); upgradeContainer.innerHTML = '';
-            const currentJob = levelUpQueue[0];
-
-            if (currentJob.type === 'BOSS_REWARD') {
-                levelupTitle.textContent = "🏆 BOSS TOURNAMENT REWARD 🏆";
-                levelupTitle.style.color = "#66fcf1";
-                levelupSub.textContent = "3개의 일반 강화 장비와 1개의 보스 시너지 특수 파츠가 주어집니다!";
-                
-                let selectedCards = [];
-                let normalPicks = getRandomGeneralUpgrades(3);
-                normalPicks.forEach(p => selectedCards.push({ up: p, isBossSpec: false }));
-
-                let randomBossUpgrade = bossUpgrades[Math.floor(Math.random() * bossUpgrades.length)];
-                selectedCards.push({ up: randomBossUpgrade, isBossSpec: true });
-
-                selectedCards.forEach(obj => {
-                    const card = document.createElement('div'); card.className = 'upgrade-card';
-                    if (obj.isBossSpec) {
-                        card.style.borderColor = '#66fcf1'; card.style.background = 'rgba(102, 252, 241, 0.12)';
-                    }
-                    card.innerHTML = `<div class="upgrade-title" style="color: ${obj.isBossSpec ? '#66fcf1':'#ffd43b'}">${obj.up.title}</div><div class="upgrade-desc">${obj.up.desc}</div>`;
-                    
-                    card.onclick = () => {
-                        if (obj.isBossSpec) {
-                            player.bossSynergies.push(obj.up.type);
-                        } else {
-                            applyGeneralUpgrade(obj.up.type);
-                        }
-                        levelUpQueue.shift(); processNextQueue();
-                    };
-                    upgradeContainer.appendChild(card);
-                });
-
-            } else if (currentJob.type === 'NORMAL_LVUP') {
-                const targetLv = currentJob.level; levelupTitle.style.color = "#ffd43b";
-
-                if (targetLv % 5 === 0) {
-                    levelupTitle.textContent = `무기 스페셜 테크 트리 (LV.${targetLv})`;
-                    if (targetLv === 5) {
-                        levelupSub.textContent = "새롭게 마스터할 메인 주무기 규격을 하나 고르십시오.";
-                        const card1 = document.createElement('div'); card1.className = 'upgrade-card'; card1.style.borderColor = '#ff922b';
-                        card1.innerHTML = `<div class="upgrade-title" style="color:#ff922b;">[돌격 소총]</div><div class="upgrade-desc">초연사 레이킹 / 30발 장탄</div>`;
-                        card1.onclick = () => { player.changeWeapon('RIFLE'); levelUpQueue.shift(); processNextQueue(); };
-                        
-                        const card2 = document.createElement('div'); card2.className = 'upgrade-card'; card2.style.borderColor = '#fab005';
-                        card2.innerHTML = `<div class="upgrade-title" style="color:#fab005;">[샷건]</div><div class="upgrade-desc">5발 부채꼴 확산 / 8발 장탄</div>`;
-                        card2.onclick = () => { player.changeWeapon('SHOTGUN'); levelUpQueue.shift(); processNextQueue(); };
-                        upgradeContainer.appendChild(card1); upgradeContainer.appendChild(card2);
-                    } else {
-                        levelupSub.textContent = "보유 무기의 연계 특성을 한층 영구 커스텀 강화합니다.";
-                        const up1 = document.createElement('div'); up1.className = 'upgrade-card'; up1.innerHTML = `<div class="upgrade-title">화력 대량 증가</div><div class="upgrade-desc">대미지 +2 증가</div>`;
-                        up1.onclick = () => { player.damageBonus += 2; levelUpQueue.shift(); processNextQueue(); };
-                        const up2 = document.createElement('div'); up2.className = 'upgrade-card'; up2.innerHTML = `<div class="upgrade-title">전술 연사 모듈</div><div class="upgrade-desc">연사 속도 +35%</div>`;
-                        up2.onclick = () => { player.fireRateMod += 0.35; levelUpQueue.shift(); processNextQueue(); };
-                        upgradeContainer.appendChild(up1); upgradeContainer.appendChild(up2);
-                    }
-                } else {
-                    levelupTitle.textContent = `일반 강화 버프 (LV.${targetLv})`;
-                    levelupSub.textContent = "생존 편의 스펙 파츠 및 낮은 확률의 특수 장비를 융합하십시오.";
-                    
-                    let pool = getRandomGeneralUpgrades(3);
-                    pool.forEach(up => {
-                        const card = document.createElement('div'); card.className = 'upgrade-card';
-                        if(up.weight === 6) card.style.borderColor = '#9775fa';
-                        card.innerHTML = `<div class="upgrade-title" ${ up.weight === 6 ? "style='color:#9775fa;'" : "" }>${up.title}</div><div class="upgrade-desc">${up.desc}</div>`;
-                        card.onclick = () => {
-                            applyGeneralUpgrade(up.type);
-                            levelUpQueue.shift(); processNextQueue();
-                        };
-                        upgradeContainer.appendChild(card);
-                    });
+            // 투사체-적 충돌 검사
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                let e = enemies[j];
+                let dist = Math.hypot(p.x - e.x, p.y - e.y);
+                if (dist < p.radius + e.radius) {
+                    enemies.splice(j, 1);
+                    projectiles.splice(i, 1);
+                    score += 10;
+                    scoreEl.innerText = score;
+                    break; // 하나의 투사체는 하나의 적만 맞춤
                 }
             }
         }
 
-        function applyGeneralUpgrade(type) {
-            if (type === 'HEAL') { if (player.hp < player.maxHp) player.hp++; updateHpUi(); }
-            else if (type === 'PIERCE') player.bulletPierce += 1;
-            else if (type === 'SHIELD') { player.shield += 1; updateHpUi(); }
-            else if (type === 'FIRERATE') player.fireRateMod += 0.20;
-            else if (type === 'DAMAGE') player.damageBonus += 1;
-            else if (type === 'RELOAD') player.reloadSpeedMod += 0.25;
-            else if (type === 'R_DRONE') drones.push(new RangeDrone());
-            else if (type === 'M_DRONE') drones.push(new MeleeDrone());
-            else if (type === 'GAMBLE') player.gambleActive = true;
+        // 적 관리
+        // 난이도 상승: 시간에 따라 스폰 속도 증가
+        let spawnRate = Math.max(200, 2000 - gameTime * 50);
+        if (timestamp - lastEnemySpawnTime > spawnRate) {
+            spawnEnemy();
+            lastEnemySpawnTime = timestamp;
         }
 
-        function handleGameOver(reason) {
-            gameState = 'GAMEOVER'; resultTime.textContent = gameTime.toFixed(1) + "초"; resultScore.textContent = score;
-            if (reason === 'TIMEOUT') { gameoverTitle.textContent = "TIME OUT (패배)"; gameoverReason.textContent = "⚠️ 보스를 제한 시간 내에 격파하지 못했습니다."; }
-            else { gameoverTitle.textContent = "GAME OVER"; gameoverReason.textContent = "☠️ 모든 체력을 잃고 생존에 실패했습니다."; }
-            gameoverScreen.classList.add('active'); bossWarning.style.display = 'none'; bossTimerUi.style.display = 'none';
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            let angle = Math.atan2(player.y - e.y, player.x - e.x);
+            e.x += Math.cos(angle) * e.speed;
+            e.y += Math.sin(angle) * e.speed;
+
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#f00'; // 빨간색
+            ctx.fill();
+            ctx.closePath();
+
+            // 적-플레이어 충돌 검사 (게임 오버)
+            let dist = Math.hypot(player.x - e.x, player.y - e.y);
+            if (dist < player.radius + e.radius) {
+                gameOver();
+                return;
+            }
         }
 
-        function loop(timestamp) {
-            if (gameState === 'PLAYING') {
-                const dt = timestamp - lastTime; lastTime = timestamp; gameTime += dt / 1000; spawnTimer += dt;
-                if (invincibilityTimer > 0) invincibilityTimer -= dt;
-                if (timeWarpTimer > 0) timeWarpTimer -= dt;
+        animationId = requestAnimationFrame(update);
+    }
 
-                if (!isBossActive) {
-                    bossSpawnTimer += dt / 1000;
-                    if (bossSpawnTimer >= BOSS_INTERVAL) { spawnBoss(); bossSpawnTimer = 0; }
-                } else {
-                    bossTimeLeft -= dt / 1000; bossTimerUi.textContent = `보스전 제한시간: ${Math.max(0, bossTimeLeft).toFixed(1)}s`;
-                    if (bossTimeLeft <= 0) { handleGameOver('TIMEOUT'); return; }
-                }
+    function gameOver() {
+        isGameOver = true;
+        cancelAnimationFrame(animationId);
+        
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, width, height);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = '40px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', width/2, height/2);
+        ctx.font = '20px sans-serif';
+        ctx.fillText('Final Score: ' + score, width/2, height/2 + 40);
+        ctx.fillText('Time Survived: ' + gameTime + 's', width/2, height/2 + 70);
+        
+        // 재시작 버튼 대용 클릭 이벤트
+        window.addEventListener('click', restart, {once: true});
+    }
+    
+    function restart() {
+        enemies = [];
+        projectiles = [];
+        score = 0;
+        gameTime = 0;
+        scoreEl.innerText = score;
+        timeEl.innerText = gameTime;
+        player = { x: width / 2, y: height / 2, radius: 15, speed: 5 };
+        isGameOver = false;
+        lastEnemySpawnTime = 0;
+        animationId = requestAnimationFrame(update);
+    }
 
-                const currentInterval = Math.max(500, spawnInterval - (gameTime * 6));
-                if (spawnTimer >= currentInterval) { spawnEnemy(); spawnTimer = 0; }
+    // --- 게임 시작 ---
+    animationId = requestAnimationFrame(update);
 
-                player.update(dt);
-                bullets.forEach(b => b.update()); enemyBullets.forEach(eb => eb.update(dt)); enemies.forEach(e => e.update(dt)); gems.forEach(g => g.update()); items.forEach(it => it.update()); particles.forEach(p => p.update());
-
-                for (let b of bullets) {
-                    for (let e of enemies) {
-                        if (!b.toRemove && !e.toRemove) {
-                            if (Math.hypot(e.x - b.x, e.y - b.y) < b.radius + e.radius) {
-                                e.hp -= b.damage; b.pierce--; 
-                                
-                                if (player.bossSynergies.includes('BULLET_BUFF')) {
-                                    let baseAngle = Math.atan2(b.vy, b.vx);
-                                    bullets.push(new Bullet(b.x, b.y, baseAngle + Math.PI/2, 1, 1, '#fab005'));
-                                    bullets.push(new Bullet(b.x, b.y, baseAngle - Math.PI/2, 1, 1, '#fab005'));
-                                }
-
-                                if (b.pierce <= 0) b.toRemove = true;
-
-                                if (e.hp <= 0) {
-                                    e.toRemove = true; createExplosion(e.x, e.y, e.color, e.isBoss);
-                                    gems.push(new ExpGem(e.x, e.y, e.expValue));
-                                    if (!e.isBoss && Math.random() < 0.10) items.push(new RecoveryItem(e.x, e.y));
-                                    
-                                    if (player.bossSynergies.includes('KILL_BUFF')) {
-                                        player.killCount++;
-                                        if (player.killCount >= 15) {
-                                            player.killCount = 0;
-                                            if (Math.random() < 0.5) {
-                                                player.invincibleTimer = 3000;
-                                            } else {
-                                                drones.forEach(d => { if(d.cooldown) d.cooldown = 0; if(d.state === 'LOCK' || d.state==='DASH') d.state='ORBIT'; });
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                bullets = bullets.filter(b => !b.toRemove); enemyBullets = enemyBullets.filter(eb => !eb.toRemove); enemies = enemies.filter(e => !e.toRemove); gems = gems.filter(g => !g.toRemove); items = items.filter(it => !it.toRemove); particles = particles.filter(p => p.alpha > 0);
-
-                uiLevel.textContent = player.level; uiScore.textContent = score; uiTime.textContent = gameTime.toFixed(1) + "s";
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
-                if (shakeIntensity > 0) { ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity); shakeIntensity *= 0.88; if (shakeIntensity < 0.2) shakeIntensity = 0; }
-
-                ctx.strokeStyle = '#1a222d'; ctx.lineWidth = 1;
-                for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
-                for(let j=0; j<canvas.height; j+=40) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke(); }
-
-                gems.forEach(g => g.draw()); items.forEach(it => it.draw()); particles.forEach(p => p.draw()); bullets.forEach(b => b.draw()); enemyBullets.forEach(eb => eb.draw()); enemies.forEach(e => e.draw()); player.draw();
-                ctx.restore();
-
-                ctx.fillStyle = '#273242'; ctx.fillRect(0, 0, canvas.width, 6);
-                ctx.fillStyle = '#ffd43b'; ctx.fillRect(0, 0, canvas.width * (player.exp / player.nextExp), 6);
-            } else { lastTime = timestamp; }
-            requestAnimationFrame(loop);
-        }
-
-        window.addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = true; if (k === 'r' && (gameState === 'GAMEOVER' || gameState === 'START')) startGame(); });
-        window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (k in keys) keys[k] = false; });
-        function getMousePos(e) { const rect = canvas.getBoundingClientRect(); return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
-        window.addEventListener('mousemove', e => { const pos = getMousePos(e); mouse.x = pos.x; mouse.y = pos.y; });
-        window.addEventListener('mousedown', e => { if (e.button === 0) mouse.isPressed = true; });
-        window.addEventListener('mouseup', e => { if (e.button === 0) mouse.isPressed = false; });
-
-        requestAnimationFrame(loop);
-    </script>
+</script>
 </body>
 </html>

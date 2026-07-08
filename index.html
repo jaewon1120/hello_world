@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>포물선 궤적 예측 원버튼 플랫포머</title>
+    <title>탑뷰 슈팅 서바이벌 게임</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background: #11131e;
+            background-color: #0b0c10;
             color: #fff;
             font-family: 'Malgun Gothic', sans-serif;
             display: flex;
@@ -22,680 +22,680 @@
 
         h1 {
             margin: 5px 0;
-            font-size: 1.8rem;
-            color: #4dabf7;
-            text-shadow: 0 0 10px rgba(77, 171, 247, 0.5);
+            font-size: 1.6rem;
+            color: #66fcf1;
+            text-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
         }
 
-        #game-ui {
+        #ui-container {
             width: 800px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
+            margin-bottom: 5px;
+            font-size: 1rem;
             font-weight: bold;
         }
 
-        #stage-indicator {
-            background: #22b8cf;
-            padding: 5px 15px;
-            border-radius: 20px;
-            color: #111;
-        }
-
-        #weather-indicator {
-            background: #ff8787;
-            padding: 5px 15px;
-            border-radius: 20px;
-            color: #111;
-            margin-left: 10px;
-        }
-
-        #game-container {
+        #game-wrapper {
             position: relative;
             width: 800px;
-            height: 500px;
-            border: 4px solid #343a40;
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-            background: linear-gradient(to bottom, #1a1c29, #0e1017);
-            overflow: hidden;
+            height: 600px;
+            border: 3px solid #1f2833;
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            background-color: #1f2833;
         }
 
         canvas {
             display: block;
-            outline: none;
+            background-color: #121824;
+            cursor: crosshair;
         }
 
-        .screen {
+        /* 화면 오버레이 공통 스타일 */
+        .overlay-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(14, 16, 23, 0.9);
+            background: rgba(18, 24, 36, 0.9);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.2s ease;
             text-align: center;
+            z-index: 10;
         }
 
-        .screen.active {
+        .overlay-screen.active {
             opacity: 1;
             pointer-events: auto;
         }
 
-        .screen h2 {
+        .overlay-screen h2 {
             font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .screen p {
-            font-size: 1.1rem;
-            color: #adb5bd;
-            margin-bottom: 20px;
-            line-height: 1.6;
+            margin-bottom: 15px;
         }
 
         .btn {
-            background: #4dabf7;
-            color: #111;
+            background: #66fcf1;
+            color: #0b0c10;
             border: none;
-            padding: 12px 30px;
-            font-size: 1.2rem;
+            padding: 12px 35px;
+            font-size: 1.1rem;
             font-weight: bold;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(77, 171, 247, 0.4);
+            box-shadow: 0 4px 14px rgba(102, 252, 241, 0.3);
             transition: all 0.2s;
         }
 
         .btn:hover {
-            background: #74c0fc;
+            background: #45a29e;
+            color: #fff;
             transform: translateY(-2px);
         }
 
-        #info-text {
-            margin-top: 15px;
-            color: #868e96;
-            font-size: 0.9rem;
-            text-align: center;
-            line-height: 1.5;
+        /* 레벨업 선택지 스타일 */
+        #upgrade-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
         }
 
-        .highlight {
-            color: #ff8787;
+        .upgrade-card {
+            background: #1f2833;
+            border: 2px solid #45a29e;
+            border-radius: 6px;
+            padding: 15px;
+            width: 160px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upgrade-card:hover {
+            border-color: #66fcf1;
+            background: #273242;
+            transform: translateY(-4px);
+        }
+
+        .upgrade-title {
+            color: #66fcf1;
             font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .upgrade-desc {
+            font-size: 0.9rem;
+            color: #c5a880;
+        }
+
+        #info-text {
+            margin-top: 8px;
+            color: #c5a880;
+            font-size: 0.85rem;
         }
     </style>
 </head>
 <body>
 
-    <h1>PARABOLA PREDICTION PLATFORMER</h1>
-    
-    <div id="game-ui">
-        <div style="display: flex;">
-            <div id="stage-indicator">STAGE 1</div>
-            <div id="weather-indicator">날씨: ☀️ 맑음</div>
-        </div>
-        <div>목적지(<span style="color:#ffd43b;">★</span>)로 도달하세요!</div>
+    <h1>TOP-DOWN SHOOTING SURVIVAL</h1>
+
+    <div id="ui-container">
+        <div>LEVEL: <span id="ui-level" style="color:#66fcf1;">1</span></div>
+        <div>SCORE: <span id="ui-score" style="color:#ffd43b;">0</span></div>
+        <div>TIME: <span id="ui-time">0.0s</span></div>
     </div>
 
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="500" tabindex="1"></canvas>
+    <div id="game-wrapper">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-        <div id="start-screen" class="screen active">
-            <h2 style="color: #4dabf7;">PARABOLA JUMP</h2>
-            <p>포물선 수식을 기반으로 한 <span class="highlight">실시간 궤적 예측선</span> 플랫포머!<br>
-            지상이나 벽에 붙어 있을 때 뛰어오를 궤적이 점선으로 미리 노출됩니다.<br>
-            벽에 붙으면 <span class="highlight">미끄러지며(Wall Slide), 점프 시 반대 방향으로 벽차기</span>를 시도합니다.</p>
-            <button class="btn" onclick="initGame(event)">게임 시작</button>
+        <!-- 시작 화면 -->
+        <div id="start-screen" class="overlay-screen active">
+            <h2 style="color: #66fcf1;">SURVIVAL START</h2>
+            <p style="color: #c5a8c8; margin-bottom: 25px; line-height: 1.6;">
+                WASD 키로 이동하고 마우스로 적을 겨냥해 격추하세요!<br>
+                보석을 모아 레벨업을 하고 더 강력하게 진화하세요.
+            </p>
+            <button class="btn" onclick="startGame()">살아남기 시작</button>
         </div>
 
-        <div id="gameover-screen" class="screen">
+        <!-- 레벨업 화면 -->
+        <div id="levelup-screen" class="overlay-screen">
+            <h2 style="color: #ffd43b;">LEVEL UP!</h2>
+            <p>영구 보너스 능력치를 선택하세요.</p>
+            <div id="upgrade-container">
+                <!-- 자바스크립트로 동적 카드 생성 -->
+            </div>
+        </div>
+
+        <!-- 게임오버 화면 -->
+        <div id="gameover-screen" class="overlay-screen">
             <h2 style="color: #ff6b6b;">GAME OVER</h2>
-            <p>밑바닥으로 추락했습니다!</p>
-            <button class="btn" onclick="restartStage(event)">다시 시도 (Space)</button>
-        </div>
-
-        <div id="clear-screen" class="screen">
-            <h2 style="color: #69db7c;">STAGE CLEAR!</h2>
-            <p>돌파 성공!</p>
-            <button class="btn" onclick="nextStage(event)">다음 단계로 (Space)</button>
-        </div>
-
-        <div id="ending-screen" class="screen">
-            <h2 style="color: #ffd43b;">🎉 PERFECT COMPLETE 🎉</h2>
-            <p>포물선 수학 궤적과 기후 변화를 모두 지배하셨습니다!</p>
-            <button class="btn" onclick="resetWholeGame(event)">처음부터 다시하기</button>
+            <p>끝까지 버틴 시간: <span id="result-time" style="color:#66fcf1;">0s</span><br>
+            최종 처치 점수: <span id="result-score" style="color:#ffd43b;">0</span></p>
+            <button class="btn" onclick="startGame()">다시 도전하기 (R)</button>
         </div>
     </div>
 
     <div id="info-text">
-        조작 방법: <span class="highlight">스페이스바(Space) 또는 위쪽 방향키(↑)</span> | 언제든지 <span class="highlight">R 키</span> 입력 시 스테이지 즉시 재시작<br>
-        <span style="color:#22d8cf;">민트색 구슬</span>을 획득하면 공중에서 예측선이 켜지며 한 번 더 포물선 대도약(2단 점프)이 가능합니다.
+        이동: [W, A, S, D] | 조준: [마우스 커서] | 발사: [마우스 좌클릭 유지 가능] | 재시작: [R]
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const stageIndicator = document.getElementById('stage-indicator');
-        const weatherIndicator = document.getElementById('weather-indicator');
+        // UI 요소 엘리먼트
+        const uiLevel = document.getElementById('ui-level');
+        const uiScore = document.getElementById('ui-score');
+        const uiTime = document.getElementById('ui-time');
         const startScreen = document.getElementById('start-screen');
+        const levelupScreen = document.getElementById('levelup-screen');
         const gameoverScreen = document.getElementById('gameover-screen');
-        const clearScreen = document.getElementById('clear-screen');
-        const endingScreen = document.getElementById('ending-screen');
+        const upgradeContainer = document.getElementById('upgrade-container');
+        const resultTime = document.getElementById('result-time');
+        const resultScore = document.getElementById('result-score');
 
-        let currentStage = 1;
-        const maxStage = 3; 
-        let gameState = 'START'; 
-        let gameLoopId;
+        // 게임 상태 시스템
+        let gameState = 'START'; // START, PLAYING, LEVELUP, GAMEOVER
+        let score = 0;
+        let gameTime = 0;
+        let lastTime = 0;
+        let spawnTimer = 0;
+        let spawnInterval = 1500; // 적 생성 주기 (ms) - 시간 지날수록 감소
 
-        // 물리 밸런스 설정 (멀리뛰기 기반 최적화)
-        let player = {
-            x: 100,
-            y: 400,
-            width: 20,
-            height: 32,
-            vx: 0,              
-            vy: 0,
-            targetVx: 0,        
-            forwardSpeed: 6.5,  // 수평 이동 속도 기본값
-            gravity: 0.45,      // 중력값
-            jumpForce: -9.5,    // 점프 추진력
-            slideGravity: 1.2,  // 벽면 흘러내리기 최대 속도 한계치
-            isGrounded: false,
-            facingDir: 1,       
-            canDoubleJump: false,
-            isTouchingWall: false, 
-            wallDir: 0             
-        };
+        // 키 바인딩 맵
+        const keys = { w: false, a: false, s: false, d: false };
+        const mouse = { x: 0, y: 0, isPressed: false };
 
-        let isJumpKeyPressed = false;
+        // 객체 저장소 배열
+        let player;
+        let bullets = [];
+        let enemies = [];
+        let gems = [];
 
-        // 날씨 엔진 변수
-        let weatherTypes = ['SUNNY', 'RAINY', 'SNOWY'];
-        let currentWeather = 'SUNNY';
-        let weatherTimer = 0;
-        const WEATHER_CHANGE_INTERVAL = 300; 
+        // 능력치 업그레이드 풀 정의
+        const upgrades = [
+            { type: 'DAMAGE', title: '화력 강화', desc: '총알 공격력 +1' },
+            { type: 'FIRERATE', title: '속사 기어', desc: '공격 연사 속도 +20%' },
+            { type: 'SPEED', title: '경량 부츠', desc: '플레이어 이동 속도 +15%' },
+            { type: 'MAX_HP', title: '외골격 강화', desc: '최대 체력 +20 및 전량 회복' },
+            { type: 'PIERCE', title: '관통 탄환', desc: '총알 관통 횟수 +1' }
+        ];
 
-        let platforms = [];
-        let doubleJumpItems = []; 
-        let goals = { x: 0, y: 0, width: 25, height: 25 };
+        // 플레이어 클래스 구성
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 16;
+                this.baseSpeed = 3.2;
+                this.speedMultiplier = 1.0;
+                this.hp = 100;
+                this.maxHp = 100;
+                
+                // 레벨 성장 관련
+                this.level = 1;
+                this.exp = 0;
+                this.nextExp = 10;
 
-        // 예측선 맵 디자인 구조
-        const stageMaps = {
-            1: {
-                name: "1. 궤적 예측선과 포물선 원리",
-                playerStart: { x: 40, y: 350, dir: 1 },
-                goal: { x: 730, y: 320 },
-                items: [{ x: 380, y: 270, radius: 8, active: true }],
-                platforms: [
-                    { x: 0, y: 420, width: 150, height: 80 },    
-                    { x: 480, y: 380, width: 140, height: 40 },
-                    { x: 700, y: 380, width: 80, height: 120 }    
-                ]
-            },
-            2: {
-                name: "2. 벽 슬라이드와 각도 계산",
-                playerStart: { x: 40, y: 350, dir: 1 },
-                goal: { x: 70, y: 120 },
-                items: [],
-                platforms: [
-                    { x: 0, y: 420, width: 100, height: 80 },   
-                    { x: 340, y: 220, width: 40, height: 280 },   
-                    { x: 680, y: 100, width: 50, height: 400 },   
-                    { x: 30, y: 180, width: 110, height: 40 }     
-                ]
-            },
-            3: {
-                name: "3. 극한 관성과 유도 대도약",
-                playerStart: { x: 40, y: 400, dir: 1 },
-                goal: { x: 720, y: 120 },
-                items: [
-                    { x: 260, y: 290, radius: 8, active: true },
-                    { x: 500, y: 190, radius: 8, active: true }
-                ],
-                platforms: [
-                    { x: 0, y: 460, width: 90, height: 40 },    
-                    { x: 380, y: 340, width: 40, height: 160 },   
-                    { x: 650, y: 180, width: 150, height: 320 }   
-                ]
+                // 무기 관련 능력치
+                this.damage = 1;
+                this.shootCooldown = 0;
+                this.baseShootInterval = 350; // 발사 간격 (ms)
+                this.fireRateMultiplier = 1.0;
+                this.bulletPierce = 1;
             }
-        };
 
-        function initGame(e) {
-            if(e) e.stopPropagation();
-            startScreen.classList.remove('active');
-            loadStage(1);
-        }
+            get speed() { return this.baseSpeed * this.speedMultiplier; }
+            get shootInterval() { return this.baseShootInterval / this.fireRateMultiplier; }
 
-        function loadStage(stageNum) {
-            currentStage = stageNum;
-            const mapData = stageMaps[currentStage];
-            
-            stageIndicator.textContent = mapData.name;
-            platforms = mapData.platforms;
-            goals = mapData.goal;
-            
-            doubleJumpItems = mapData.items ? mapData.items.map(item => ({ ...item, active: true })) : [];
+            update(dt) {
+                // 1. 플레이어 이동 로직 처리
+                let moveX = 0;
+                let moveY = 0;
+                if (keys.w) moveY -= 1;
+                if (keys.s) moveY += 1;
+                if (keys.a) moveX -= 1;
+                if (keys.d) moveX += 1;
 
-            player.facingDir = mapData.playerStart.dir;
-            player.x = mapData.playerStart.x;
-            player.y = mapData.playerStart.y;
-            player.vx = 0; 
-            player.vy = 0;
-            player.targetVx = 0;
-            player.isGrounded = false;
-            player.canDoubleJump = false;
-            player.isTouchingWall = false;
-            player.wallDir = 0;
+                if (moveX !== 0 && moveY !== 0) {
+                    // 대각선 이동 속도 평준화 보정
+                    moveX *= 0.7071;
+                    moveY *= 0.7071;
+                }
 
-            currentWeather = 'SUNNY';
-            weatherTimer = 0;
-            updateWeatherUI();
+                this.x += moveX * this.speed;
+                this.y += moveY * this.speed;
 
-            isJumpKeyPressed = false;
-            closeAllScreens();
-            gameState = 'PLAYING';
-            setTimeout(() => { canvas.focus(); }, 15);
+                // 화면 경계선 월 락(Wall Lock) 제한
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
 
-            if(gameLoopId) cancelAnimationFrame(gameLoopId);
-            gameLoopId = requestAnimationFrame(gameLoop);
-        }
+                // 2. 공격 쿨다운 제어 및 자동 연사
+                if (this.shootCooldown > 0) {
+                    this.shootCooldown -= dt;
+                }
 
-        function gameLoop() {
-            if (gameState !== 'PLAYING') return;
+                if (mouse.isPressed && this.shootCooldown <= 0) {
+                    this.shoot();
+                    this.shootCooldown = this.shootInterval;
+                }
+            }
 
-            updateWeather();
-            updatePhysics();
-            checkCollisions();
-            render();
+            shoot() {
+                // 플레이어 중심에서 마우스 포인터 방향 각도 연산
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                bullets.push(new Bullet(this.x, this.y, angle, this.damage, this.bulletPierce));
+            }
 
-            gameLoopId = requestAnimationFrame(gameLoop);
-        }
+            gainExp(amount) {
+                this.exp += amount;
+                if (this.exp >= this.nextExp) {
+                    this.exp -= this.nextExp;
+                    this.level++;
+                    this.nextExp = Math.floor(this.nextExp * 1.4) + 5;
+                    triggerLevelUp();
+                }
+            }
 
-        function updateWeather() {
-            weatherTimer++;
-            if (weatherTimer >= WEATHER_CHANGE_INTERVAL) {
-                weatherTimer = 0;
-                let currentIndex = weatherTypes.indexOf(currentWeather);
-                let nextIndex = (currentIndex + 1) % weatherTypes.length;
-                currentWeather = weatherTypes[nextIndex];
-                updateWeatherUI();
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // 마우스 방향을 향해 캐릭터 회전 연출
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                ctx.rotate(angle);
+
+                // 플레이어 메인 바디
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#66fcf1';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#66fcf1';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // 조준 총구 방향 인디케이터 사각형
+                ctx.fillStyle = '#1f2833';
+                ctx.fillRect(0, -5, 22, 10);
+                ctx.restore();
+
+                // 체력 바 인터페이스 렌더링
+                const barW = 40;
+                const barH = 5;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(this.x - barW / 2, this.y - this.radius - 12, barW, barH);
+                
+                const hpRatio = Math.max(0, this.hp / this.maxHp);
+                ctx.fillStyle = hpRatio > 0.3 ? '#45a29e' : '#ff6b6b';
+                ctx.fillRect(this.x - barW / 2, this.y - this.radius - 12, barW * hpRatio, barH);
             }
         }
 
-        function updateWeatherUI() {
-            if (currentWeather === 'SUNNY') {
-                weatherIndicator.innerHTML = "날씨: ☀️ 맑음 (보통)";
-                weatherIndicator.style.background = "#51cf66";
-            } else if (currentWeather === 'RAINY') {
-                weatherIndicator.innerHTML = "날씨: 🌧️ 비 (미끄러움)";
-                weatherIndicator.style.background = "#ff922b";
-            } else if (currentWeather === 'SNOWY') {
-                weatherIndicator.innerHTML = "날씨: ❄️ 눈 (미끄러운 관성!)";
-                weatherIndicator.style.background = "#339af0";
+        // 총알 클래스 구성
+        class Bullet {
+            constructor(x, y, angle, damage, pierce) {
+                this.x = x;
+                this.y = y;
+                this.speed = 7;
+                this.vx = Math.cos(angle) * this.speed;
+                this.vy = Math.sin(angle) * this.speed;
+                this.radius = 4;
+                this.damage = damage;
+                this.pierce = pierce;
+                this.toRemove = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 화면 밖으로 이탈 시 제거 태그 플래그 전환
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+                    this.toRemove = true;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffd43b';
+                ctx.fill();
             }
         }
 
-        function getAccelValue() {
-            if (player.isGrounded) {
-                if (currentWeather === 'SUNNY') return 0.4;
-                if (currentWeather === 'RAINY') return 0.15;
-                if (currentWeather === 'SNOWY') return 0.05; 
-            } else {
-                if (currentWeather === 'SUNNY') return 0.15;
-                if (currentWeather === 'RAINY') return 0.08;
-                if (currentWeather === 'SNOWY') return 0.02; 
-            }
-            return 1.0;
-        }
+        // 적 추격자 클래스 구성
+        class Enemy {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'NORMAL', 'FAST', 'TANK'
+                this.toRemove = false;
 
-        function updatePhysics() {
-            if (!player.isGrounded) {
-                if (player.isTouchingWall && player.vy > 0) {
-                    player.vy += (player.gravity * 0.3);
-                    if (player.vy > player.slideGravity) player.vy = player.slideGravity;
+                // 타입별 고유 스펙 다형성 분기
+                if (type === 'FAST') {
+                    this.radius = 12;
+                    this.speed = 2.4;
+                    this.hp = 1;
+                    this.color = '#ff8787';
+                    this.expValue = 1;
+                } else if (type === 'TANK') {
+                    this.radius = 24;
+                    this.speed = 1.0;
+                    this.hp = 6;
+                    this.color = '#be4bdb';
+                    this.expValue = 5;
                 } else {
-                    if (player.vy < 0 && !isJumpKeyPressed) {
-                        player.vy += player.gravity * 2.2; 
-                    } else {
-                        player.vy += player.gravity;
+                    this.radius = 15;
+                    this.speed = 1.6;
+                    this.hp = 3;
+                    this.color = '#a9e34b';
+                    this.expValue = 2;
+                }
+            }
+
+            update() {
+                // 무조건 최단거리 플레이어 벡터를 향해 등속 추적 추격 진행
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist > 0) {
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+
+                // 플레이어 본체와의 충돌 대미지 전이 검사
+                if (dist < this.radius + player.radius) {
+                    player.hp -= 0.5; // 프레임 단위 누적 도트 피해 유발
+                    if (player.hp <= 0) {
+                        handleGameOver();
                     }
                 }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // 몬스터 테두리 가시선 추가
+                ctx.strokeStyle = '#0b0c10';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // 경험치 젬 아이템 클래스 구성
+        class ExpGem {
+            constructor(x, y, value) {
+                this.x = x;
+                this.y = y;
+                this.radius = 5;
+                this.value = value;
+                this.toRemove = false;
+            }
+
+            update() {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                // 마그네틱 자성 인력 시스템 효과 (가까워지면 플레이어 쪽으로 급격히 끌려옴)
+                if (dist < 85) {
+                    this.x += (dx / dist) * 4.5;
+                    this.y += (dy / dist) * 4.5;
+                }
+
+                if (dist < this.radius + player.radius) {
+                    player.gainExp(this.value);
+                    this.toRemove = true;
+                    score += this.value * 10;
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffd43b';
+                ctx.fill();
+            }
+        }
+
+        // 초기 게임 데이터 리셋 및 구동 함수
+        function startGame() {
+            score = 0;
+            gameTime = 0;
+            spawnTimer = 0;
+            spawnInterval = 1500;
+            
+            bullets = [];
+            enemies = [];
+            gems = [];
+
+            player = new Player(canvas.width / 2, canvas.height / 2);
+
+            // 오버레이 인터페이스 싹 비우기 해제
+            startScreen.classList.remove('active');
+            levelupScreen.classList.remove('active');
+            gameoverScreen.classList.remove('active');
+
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            
+            // 포커스 강제 고정
+            canvas.focus();
+        }
+
+        // 난이도 비례 몬스터 웨이브 생성 연산기
+        function spawnEnemy() {
+            let spawnX, spawnY;
+            
+            // 화면 바깥 사각 외곽 라인 중 한 곳의 무작위 스폰 좌표 설정 규칙
+            if (Math.random() < 0.5) {
+                spawnX = Math.random() < 0.5 ? -30 : canvas.width + 30;
+                spawnY = Math.random() * canvas.height;
             } else {
-                player.vy = 0;
-                player.targetVx = 0; 
+                spawnX = Math.random() * canvas.width;
+                spawnY = Math.random() < 0.5 ? -30 : canvas.height + 30;
             }
 
-            let accel = getAccelValue();
-            player.vx += (player.targetVx - player.vx) * accel;
-
-            player.x += player.vx;
-            player.y += player.vy;
-
-            if (player.y > canvas.height) {
-                handleGameOver();
+            // 생존 시간에 따라 강력한 적 가중치 확률 대입
+            const rand = Math.random();
+            let type = 'NORMAL';
+            
+            if (gameTime > 50 && rand < 0.20) {
+                type = 'TANK';
+            } else if (gameTime > 20 && rand < 0.35) {
+                type = 'FAST';
+            } else if (gameTime > 90 && rand < 0.40) {
+                type = 'TANK';
             }
+
+            enemies.push(new Enemy(spawnX, spawnY, type));
         }
 
-        function checkCollisions() {
-            let wasGrounded = player.isGrounded;
-            player.isGrounded = false;
-            player.isTouchingWall = false;
-            player.wallDir = 0;
+        // 레벨업 선택지 팝업 트리거
+        function triggerLevelUp() {
+            gameState = 'LEVELUP';
+            levelupScreen.classList.add('active');
+            upgradeContainer.innerHTML = '';
 
-            if (player.x <= 0) {
-                player.x = 0;
-                if (!wasGrounded && player.vy >= 0) {
-                    player.isTouchingWall = true;
-                    player.wallDir = -1; 
-                }
-            } else if (player.x + player.width >= canvas.width) {
-                player.x = canvas.width - player.width;
-                if (!wasGrounded && player.vy >= 0) {
-                    player.isTouchingWall = true;
-                    player.wallDir = 1; 
-                }
-            }
+            // 셔플 알고리즘을 이용해 무작위 중복 없는 특성 3가지 슬롯 배치 추출
+            const shuffled = [...upgrades].sort(() => 0.5 - Math.random());
+            const selectedUpgrades = shuffled.slice(0, 3);
 
-            for (let plat of platforms) {
-                if (player.x + player.width > plat.x && player.x < plat.x + plat.width) {
-                    if (player.vy >= 0 && player.y + player.height >= plat.y && player.y + player.height <= plat.y + player.vy + 6) {
-                        player.y = plat.y - player.height;
-                        player.vy = 0;
-                        player.isGrounded = true;
-                        player.canDoubleJump = false; 
-                    }
-                    else if (player.vy < 0 && player.y >= plat.y + plat.height + player.vy - 1 && player.y <= plat.y + plat.height) {
-                        player.y = plat.y + plat.height;
-                        player.vy = 0;
-                    }
-                }
-
-                if (player.y + player.height > plat.y + 2 && player.y < plat.y + plat.height - 2) {
-                    if (player.x + player.width >= plat.x && player.x + player.width <= plat.x + Math.max(player.vx, 0) + 5) {
-                        player.x = plat.x - player.width;
-                        if (!player.isGrounded && player.vy >= 0) {
-                            player.isTouchingWall = true;
-                            player.wallDir = 1; 
-                        }
-                    }
-                    else if (player.x <= plat.x + plat.width && player.x >= plat.x + plat.width + Math.min(player.vx, 0) - 5) {
-                        player.x = plat.x + plat.width;
-                        if (!player.isGrounded && player.vy >= 0) {
-                            player.isTouchingWall = true;
-                            player.wallDir = -1; 
-                        }
-                    }
-                }
-            }
-
-            doubleJumpItems.forEach(item => {
-                if (item.active) {
-                    let centerX = player.x + player.width / 2;
-                    let centerY = player.y + player.height / 2;
-                    let dist = Math.hypot(centerX - item.x, centerY - item.y);
-                    
-                    if (dist < player.width/2 + item.radius) {
-                        item.active = false;      
-                        player.canDoubleJump = true; 
-                    }
-                }
+            selectedUpgrades.forEach(up => {
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.innerHTML = `
+                    <div class="upgrade-title">${up.title}</div>
+                    <div class="upgrade-desc">${up.desc}</div>
+                `;
+                card.onclick = () => applyUpgrade(up.type);
+                upgradeContainer.appendChild(card);
             });
-
-            if (player.x + player.width > goals.x && player.x < goals.x + goals.width &&
-                player.y + player.height > goals.y && player.y < goals.y + goals.height) {
-                handleStageClear();
-            }
         }
 
-        function triggerJumpAction() {
-            if (gameState !== 'PLAYING') return;
-
-            if (!player.isGrounded && player.isTouchingWall) {
-                player.facingDir = player.wallDir === 1 ? -1 : 1; 
-                player.vy = player.jumpForce * 0.95;             
-                player.targetVx = player.forwardSpeed * player.facingDir; 
-                player.vx = player.targetVx;                     
-                player.isTouchingWall = false;
-                return;
+        // 특성 강화 적용 모듈 함수
+        function applyUpgrade(type) {
+            switch(type) {
+                case 'DAMAGE': player.damage += 1; break;
+                case 'FIRERATE': player.fireRateMultiplier += 0.25; break;
+                case 'SPEED': player.speedMultiplier += 0.15; break;
+                case 'MAX_HP': 
+                    player.maxHp += 20; 
+                    player.hp = player.maxHp; 
+                    break;
+                case 'PIERCE': player.bulletPierce += 1; break;
             }
 
-            if (player.isGrounded) {
-                player.vy = player.jumpForce;
-                player.targetVx = player.forwardSpeed * player.facingDir;
-                player.vx = player.targetVx;
-                player.isGrounded = false;
-            } 
-            else if (player.canDoubleJump) {
-                player.vy = player.jumpForce * 0.9; 
-                player.targetVx = player.forwardSpeed * player.facingDir;
-                player.vx = player.targetVx;
-                player.canDoubleJump = false; 
-            }
+            levelupScreen.classList.remove('active');
+            gameState = 'PLAYING';
+            lastTime = performance.now(); // 타이머 미스매칭 누적 튀는 현상 리셋
         }
 
-        // 블로그 연계 방식: 가상 시뮬레이션을 통해 미래의 30프레임 궤적을 렌더링에 실시간 투사
-        function drawPredictionLine() {
-            if (!player.isGrounded && !player.isTouchingWall && !player.canDoubleJump) return;
-
-            // 가상의 임시 시뮬레이션 물리값 세팅
-            let simX = player.x;
-            let simY = player.y;
-            let simVx = player.vx;
-            let simVy = player.vy;
-            let simTargetVx = player.targetVx;
-            let simFacingDir = player.facingDir;
-
-            // 만약 점프를 뛴다면? 이라는 가상의 입력 반영 연산
-            if (!player.isGrounded && player.isTouchingWall) {
-                simFacingDir = player.wallDir === 1 ? -1 : 1;
-                simVy = player.jumpForce * 0.95;
-                simTargetVx = player.forwardSpeed * simFacingDir;
-                simVx = simTargetVx;
-            } else if (player.isGrounded) {
-                simVy = player.jumpForce;
-                simTargetVx = player.forwardSpeed * simFacingDir;
-                simVx = simTargetVx;
-            } else if (player.canDoubleJump) {
-                simVy = player.jumpForce * 0.9;
-                simTargetVx = player.forwardSpeed * simFacingDir;
-                simVx = simTargetVx;
-            }
-
-            ctx.beginPath();
-            ctx.strokeStyle = player.canDoubleJump ? '#20c997' : 'rgba(255, 255, 255, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([4, 4]); // 점선 형태 출력
-
-            // 플레이어 중심점 보정
-            let startX = simX + player.width / 2;
-            let startY = simY + player.height / 2;
-            ctx.moveTo(startX, startY);
-
-            let simAccel = 0.15; // 공중 기본 관성 상수로 계산
-            if (currentWeather === 'RAINY') simAccel = 0.08;
-            if (currentWeather === 'SNOWY') simAccel = 0.02;
-
-            // 35프레임 앞의 미래 경로를 실시간 수학 선형 보간으로 추적
-            for (let i = 0; i < 35; i++) {
-                simVy += player.gravity;
-                simVx += (simTargetVx - simVx) * simAccel;
-                simX += simVx;
-                simY += simVy;
-
-                // 화면 범위 제한 걸어서 그리기
-                let currentX = Math.max(0, Math.min(canvas.width, simX + player.width/2));
-                let currentY = simY + player.height/2;
-
-                ctx.lineTo(currentX, currentY);
-                if (currentY > canvas.height) break; // 바닥 이하 추락 시 연산 조기 종료
-            }
-            ctx.stroke();
-            ctx.setLineDash([]); // 다시 실선 상태 복원
-        }
-
-        function handleUIScreenTransition() {
-            if (gameState === 'START') initGame();
-            else if (gameState === 'GAMEOVER') restartStage();
-            else if (gameState === 'CLEAR') nextStage();
-            else if (gameState === 'ENDING') resetWholeGame();
-        }
-
+        // 게임오버 트리거 프로세스
         function handleGameOver() {
             gameState = 'GAMEOVER';
+            resultTime.textContent = gameTime.toFixed(1) + "초";
+            resultScore.textContent = score;
             gameoverScreen.classList.add('active');
         }
 
-        function handleStageClear() {
-            gameState = 'CLEAR';
-            if (currentStage === maxStage) {
-                gameState = 'ENDING';
-                endingScreen.classList.add('active');
-            } else {
-                clearScreen.classList.add('active');
-            }
-        }
+        // 메인 프레임 액션 메인 파이프라인 루프 규칙
+        function loop(timestamp) {
+            if (gameState === 'PLAYING') {
+                const dt = timestamp - lastTime;
+                lastTime = timestamp;
 
-        function nextStage() { loadStage(currentStage + 1); }
-        function restartStage() { loadStage(currentStage); }
-        function resetWholeGame() { endingScreen.classList.remove('active'); loadStage(1); }
-        function closeAllScreens() {
-            startScreen.classList.remove('active');
-            gameoverScreen.classList.remove('active');
-            clearScreen.classList.remove('active');
-            endingScreen.classList.remove('active');
-        }
+                gameTime += dt / 1000;
+                spawnTimer += dt;
 
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // 기후 배경 이펙트
-            if (currentWeather === 'RAINY') {
-                ctx.fillStyle = 'rgba(73, 80, 87, 0.15)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.strokeStyle = 'rgba(165, 216, 255, 0.4)';
-                ctx.lineWidth = 1;
-                for(let i=0; i<8; i++) {
-                    let rx = Math.random() * canvas.width;
-                    let ry = Math.random() * canvas.height;
-                    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 5, ry + 15); ctx.stroke();
+                // 점진적 주기 압축으로 난이도 상승 연동 곡선 설계
+                const currentInterval = Math.max(400, spawnInterval - (gameTime * 6));
+                if (spawnTimer >= currentInterval) {
+                    spawnEnemy();
+                    spawnTimer = 0;
                 }
-            } else if (currentWeather === 'SNOWY') {
-                ctx.fillStyle = 'rgba(233, 236, 239, 0.05)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#fff';
-                for(let i=0; i<6; i++) {
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 2, 0, Math.PI*2);
-                    ctx.fill();
-                }
-            }
 
-            // 실시간 포물선 궤적 라인 연출 레이어
-            drawPredictionLine();
+                // 1. 데이터 업데이트 전개
+                player.update(dt);
 
-            // 플랫폼 구조물
-            platforms.forEach(plat => {
-                ctx.fillStyle = '#4dabf7';
-                ctx.fillRect(plat.x, plat.y, plat.width, 10);
-                ctx.fillStyle = '#2b303c';
-                ctx.fillRect(plat.x, plat.y + 10, plat.width, plat.height - 10);
-            });
+                bullets.forEach(b => b.update());
+                enemies.forEach(e => e.update());
+                gems.forEach(g => g.update());
 
-            // 점프 충전 구슬 오브젝트
-            doubleJumpItems.forEach(item => {
-                if (item.active) {
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = '#22d8cf';
-                    ctx.shadowBlur = 12;
-                    ctx.shadowColor = '#22d8cf';
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    
-                    ctx.beginPath();
-                    ctx.arc(item.x, item.y, item.radius - 3, 0, Math.PI * 2);
-                    ctx.strokeStyle = '#fff';
-                    ctx.stroke();
-                }
-            });
+                // 2. 총알 vs 적 정밀 AABB구체 충돌 감지 레이어
+                for (let b of bullets) {
+                    for (let e of enemies) {
+                        if (!b.toRemove && !e.toRemove) {
+                            const dist = Math.hypot(e.x - b.x, e.y - b.y);
+                            if (dist < b.radius + e.radius) {
+                                e.hp -= b.damage;
+                                b.pierce--;
+                                if (b.pierce <= 0) b.toRemove = true;
 
-            // 목적지 포탈 별
-            ctx.fillStyle = '#ffd43b';
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = '#ffd43b';
-            ctx.fillRect(goals.x, goals.y, goals.width, goals.height);
-            ctx.shadowBlur = 0;
-            ctx.fillStyle = '#111';
-            ctx.font = 'bold 16px Arial';
-            ctx.fillText('★', goals.x + 4, goals.y + 19);
-
-            // 플레이어 그리기
-            if (player.isTouchingWall) ctx.fillStyle = '#ff922b';
-            else if (player.canDoubleJump) ctx.fillStyle = '#20c997'; 
-            else ctx.fillStyle = '#69db7c';
-            
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = ctx.fillStyle;
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-            ctx.shadowBlur = 0;
-
-            ctx.fillStyle = '#111';
-            let eyeOffset = player.facingDir === 1 ? 14 : 2;
-            ctx.fillRect(player.x + eyeOffset, player.y + 6, 4, 6);
-        }
-
-        // 키 다운 컨트롤 마스터 (R키 리스타트 매핑완료)
-        window.addEventListener('keydown', function(e) {
-            canvas.focus();
-
-            if (e.key === 'r' || e.key === 'R') {
-                e.preventDefault();
-                if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
-                    restartStage();
-                }
-                return;
-            }
-
-            if ([32, 38, 87].includes(e.keyCode)) {
-                e.preventDefault(); 
-                
-                if (!isJumpKeyPressed) {
-                    isJumpKeyPressed = true;
-                    if (gameState === 'PLAYING') {
-                        triggerJumpAction();
-                    } else {
-                        handleUIScreenTransition();
+                                if (e.hp <= 0) {
+                                    e.toRemove = true;
+                                    gems.push(new ExpGem(e.x, e.y, e.expValue));
+                                }
+                            }
+                        }
                     }
                 }
+
+                // 3. 필터링 청소 정리 가비지 컬렉션 배열 압축 정리
+                bullets = bullets.filter(b => !b.toRemove);
+                enemies = enemies.filter(e => !e.toRemove);
+                gems = gems.filter(g => !g.toRemove);
+
+                // 4. 리얼타임 DOM 데이터 실시간 리프레시 반영
+                uiLevel.textContent = player.level;
+                uiScore.textContent = score;
+                uiTime.textContent = gameTime.toFixed(1) + "s";
+
+                // 5. 드로우 렌더링 페인팅 프로세스
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 가시성 바닥 그리드 배경 장식선
+                ctx.strokeStyle = '#1a222d';
+                ctx.lineWidth = 1;
+                for(let i=0; i<canvas.width; i+=40) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                }
+                for(let j=0; j<canvas.height; j+=40) {
+                    ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
+                }
+
+                gems.forEach(g => g.draw());
+                bullets.forEach(b => b.draw());
+                enemies.forEach(e => e.draw());
+                player.draw();
+
+                // 상단 가로축 전체 경험치 바 레이아웃 렌더링
+                ctx.fillStyle = '#273242';
+                ctx.fillRect(0, 0, canvas.width, 6);
+                ctx.fillStyle = '#ffd43b';
+                ctx.fillRect(0, 0, canvas.width * (player.exp / player.nextExp), 6);
+            } else {
+                // 일시정지(레벨업창 등) 상태일 때 누적 시간 스킵 튀는 폭발 방지 방어코드
+                lastTime = timestamp;
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        // 이벤트리스너 마운트 핸들러 관리 매핑 영역
+        window.addEventListener('keydown', e => {
+            const k = e.key.toLowerCase();
+            if (k in keys) keys[k] = true;
+
+            // R 키를 통한 긴급 게임 리셋 대응
+            if (k === 'r') {
+                if (gameState === 'GAMEOVER' || gameState === 'START') startGame();
             }
         });
 
-        window.addEventListener('keyup', function(e) {
-            if ([32, 38, 87].includes(e.keyCode)) {
-                e.preventDefault();
-                isJumpKeyPressed = false; 
-            }
+        window.addEventListener('keyup', e => {
+            const k = e.key.toLowerCase();
+            if (k in keys) keys[k] = false;
         });
 
-        canvas.addEventListener('mousedown', function(e) {
-            canvas.focus();
-            if (!isJumpKeyPressed) {
-                isJumpKeyPressed = true;
-                if (gameState === 'PLAYING') triggerJumpAction();
-                else handleUIScreenTransition();
-            }
+        // 마우스 상대좌표 위치 추적 바인딩 함수
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        window.addEventListener('mousemove', e => {
+            const pos = getMousePos(e);
+            mouse.x = pos.x;
+            mouse.y = pos.y;
         });
-        window.addEventListener('mouseup', function() { isJumpKeyPressed = false; });
+
+        window.addEventListener('mousedown', e => {
+            if (e.button === 0) mouse.isPressed = true;
+        });
+
+        window.addEventListener('mouseup', e => {
+            if (e.button === 0) mouse.isPressed = false;
+        });
+
+        // 브라우저 프레임 동기화엔진 구동 시작
+        requestAnimationFrame(loop);
     </script>
 </body>
 </html>

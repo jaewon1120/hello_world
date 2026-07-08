@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>홉스(Hops)</title>
+    <title>벽타기 관성 플랫포머 게임</title>
     <style>
         body {
             margin: 0;
@@ -47,7 +47,7 @@
         #game-container {
             position: relative;
             width: 800px;
-            height: 400px;
+            height: 500px; /* 세로 폭을 조금 더 넓혀 공간 확보 */
             border: 4px solid #343a40;
             border-radius: 8px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.7);
@@ -112,15 +112,12 @@
             transform: translateY(-2px);
         }
 
-        .btn:active {
-            transform: translateY(1px);
-        }
-
         #info-text {
             margin-top: 15px;
             color: #868e96;
             font-size: 0.9rem;
             text-align: center;
+            line-height: 1.4;
         }
 
         .highlight {
@@ -131,46 +128,44 @@
 </head>
 <body>
 
-    <h1>HOPS JUMP</h1>
+    <h1>HOPS PLATFORMER</h1>
     
     <div id="game-ui">
         <div id="stage-indicator">STAGE 1</div>
-        <div id="progress-bar-container" style="width: 300px; height: 12px; background: #343a40; border-radius: 6px; overflow: hidden; position: relative;">
-            <div id="progress-bar" style="width: 0%; height: 100%; background: #5c7cfa; transition: width 0.1s linear;"></div>
-        </div>
-        <div>목표 거리: <span id="distance-txt">0m / 100m</span></div>
+        <div>골인 지점(<span style="color:#ffd43b;">★</span>)으로 이동하세요!</div>
     </div>
 
     <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="400" tabindex="1"></canvas>
+        <canvas id="gameCanvas" width="800" height="500" tabindex="1"></canvas>
 
         <div id="start-screen" class="screen active">
-            <h2 style="color: #4dabf7;">HOPS JUMPERS</h2>
-            <p>공은 자동으로 앞으로 굴러갑니다.<br>키를 꾹 누르면 더 높게, 살짝 누르면 낮게 점프합니다!<br>총 7개의 스테이지가 당신을 기다립니다.</p>
-            <button class="btn" onclick="initGame(event)">게임 시작 (Up 방향키 / Space)</button>
+            <h2 style="color: #4dabf7;">WALL JUMPER</h2>
+            <p>직접 캐릭터를 조작하여 정상의 별을 획득하세요!<br>벽에 붙으면 미끄러지며, 그 상태에서 점프가 가능합니다.</p>
+            <button class="btn" onclick="initGame(event)">게임 시작</button>
         </div>
 
         <div id="gameover-screen" class="screen">
             <h2 style="color: #ff6b6b;">GAME OVER</h2>
-            <p id="fail-reason">발판에서 떨어졌습니다!</p>
-            <button class="btn" onclick="restartStage(event)">현재 스테이지 재시작</button>
+            <p id="fail-reason">맵 밖으로 추락했습니다!</p>
+            <button class="btn" onclick="restartStage(event)">재시작</button>
         </div>
 
         <div id="clear-screen" class="screen">
             <h2 style="color: #69db7c;">STAGE CLEAR!</h2>
-            <p id="clear-msg">훌륭합니다! 다음 단계로 나아갑니다.</p>
-            <button class="btn" id="next-btn" onclick="nextStage(event)">다음 스테이지 시작</button>
+            <p>목적지에 도달했습니다.</p>
+            <button class="btn" onclick="nextStage(event)">다음 스테이지</button>
         </div>
 
         <div id="ending-screen" class="screen">
-            <h2 style="color: #ffd43b;">🎉 ALL STAGES CLEARED! 🎉</h2>
-            <p>당신은 진정한 점프의 마스터입니다!<br>7개의 모든 험난한 맵을 완벽하게 정복했습니다.</p>
+            <h2 style="color: #ffd43b;">🎉 GAME COMPLETE 🎉</h2>
+            <p>모든 스테이지를 정복하셨습니다!<br>당신은 벽 타기의 달인입니다.</p>
             <button class="btn" onclick="resetWholeGame(event)">처음부터 다시하기</button>
         </div>
     </div>
 
     <div id="info-text">
-        조작 방법: <span class="highlight">위쪽 방향키(↑)</span> 또는 <span class="highlight">스페이스바(Space)</span>로 점프!
+        조작 방법: 이동 <span class="highlight">← / → (방향키 또는 A/D)</span> | 점프 <span class="highlight">스페이스바(Space) 또는 ↑ (W)</span><br>
+        <span style="color:#4dabf7;">벽 타기 기믹:</span> 벽 쪽으로 이동키를 누르고 있으면 천천히 미끄러지며, 이때 반대 방향+점프를 누르면 <b>벽 점프</b>가 발동합니다!
     </div>
 
     <script>
@@ -178,9 +173,6 @@
         const ctx = canvas.getContext('2d');
 
         const stageIndicator = document.getElementById('stage-indicator');
-        const distanceTxt = document.getElementById('distance-txt');
-        const progressBar = document.getElementById('progress-bar');
-        
         const startScreen = document.getElementById('start-screen');
         const gameoverScreen = document.getElementById('gameover-screen');
         const clearScreen = document.getElementById('clear-screen');
@@ -188,113 +180,99 @@
         const failReasonTxt = document.getElementById('fail-reason');
 
         let currentStage = 1;
-        const maxStage = 7;
+        const maxStage = 3; // 맵 고정형 커스텀 디자인을 위해 우선 3개 스테이지 배치
         let gameState = 'START'; 
         let gameLoopId;
 
-        // 플레이어 데이터
-        let ball = {
-            x: 150,
-            y: 200,
-            radius: 14,
+        // 플레이어 캐릭터 데이터 (인간형 오마주 사각형 오브젝트)
+        let player = {
+            x: 100,
+            y: 400,
+            width: 20,
+            height: 32,
+            vx: 0,
             vy: 0,
-            gravity: 0.6,       
-            jumpForce: -13.5,     
-            isGrounded: false
+            maxSpeed: 5.5,
+            accel: 0.45,       // 좌우 가속 관성
+            friction: 0.85,    // 바닥 마찰력 관성
+            gravity: 0.55,
+            jumpForce: -11.5,
+            isGrounded: false,
+            isWallSliding: false,
+            wallSlideSpeed: 1.5, // 벽 타기 시 하강 속도 제한
+            facingDir: 1 // -1: 왼쪽, 1: 오른쪽
         };
 
-        // 단순화된 다이렉트 키 제어 시스템
-        let keys = { jump: false };
+        // 입력 키 매핑상태
+        let keys = { left: false, right: false, jump: false };
 
-        let mapProgress = 0; 
-        let stageLength = 2000; 
-        let speed = 4.5; 
+        // 고정식 맵 객체들
         let platforms = [];
-        let obstacles = [];
+        let goals = { x: 0, y: 0, width: 25, height: 25 };
 
-        const stageConfigs = {
-            1: { name: "1. 기본 훈련장", speed: 4.5, jumpForce: -13.5, color: "#4dabf7", bg: "#1a1c29" },
-            2: { name: "2. 좁아지는 길", speed: 5.0, jumpForce: -13.5, color: "#22b8cf", bg: "#142525" },
-            3: { name: "3. 스파이크 가시밭", speed: 5.2, jumpForce: -14.0, color: "#ff8787", bg: "#2b1616" },
-            4: { name: "4. 가속 롤러코스터", speed: 6.5, jumpForce: -15.0, color: "#fcc419", bg: "#2b2610" },
-            5: { name: "5. 점프대 실험실", speed: 5.5, jumpForce: -11.5, color: "#da77f2", bg: "#251429" },
-            6: { name: "6. 연속 징검다리", speed: 5.2, jumpForce: -13.5, color: "#20c997", bg: "#102921" },
-            7: { name: "7. 인페르노 디 오리진", speed: 7.0, jumpForce: -15.0, color: "#ff922b", bg: "#29190e" }
-        };
-
-        function generateMap(stage) {
-            platforms = [];
-            obstacles = [];
-            let currentX = 0;
-
-            platforms.push({ x: 0, width: 600, y: 280, type: 'normal' });
-            currentX = 600;
-
-            while (currentX < stageLength) {
-                let gap = Math.random() * 80 + 75; 
-                let platWidth = Math.random() * 150 + 100; 
-                let type = 'normal';
-
-                if (stage === 2) platWidth = Math.random() * 80 + 55; 
-                if (stage === 6) { platWidth = 45; gap = 115; } 
-
-                currentX += gap;
-
-                if (stage === 5 && Math.random() > 0.6) {
-                    type = 'bounce';
-                    platWidth = 60;
-                }
-
-                platforms.push({ x: currentX, width: platWidth, y: 280, type: type });
-
-                if ((stage === 3 || stage === 7) && Math.random() > 0.4 && platWidth > 80) {
-                    obstacles.push({
-                        x: currentX + (platWidth / 2) - 10,
-                        y: 280 - 20,
-                        width: 20,
-                        height: 20
-                    });
-                }
-
-                currentX += platWidth;
+        // 맵 설계 리스트 (고정 배치형 스테이지)
+        const stageMaps = {
+            1: {
+                name: "1. 등반 기초",
+                playerStart: { x: 50, y: 400 },
+                goal: { x: 720, y: 100 },
+                platforms: [
+                    { x: 0, y: 460, width: 300, height: 40 }, // 시작 바닥
+                    { x: 400, y: 380, width: 120, height: 20 },
+                    { x: 580, y: 280, width: 100, height: 20 },
+                    { x: 700, y: 150, width: 80, height: 20 }  // 골대 발판
+                ]
+            },
+            2: {
+                name: "2. 높은 벽을 넘어서",
+                playerStart: { x: 60, y: 400 },
+                goal: { x: 60, y: 110 },
+                platforms: [
+                    { x: 0, y: 460, width: 800, height: 40 }, // 밑바닥
+                    { x: 350, y: 200, width: 60, height: 260 }, // 거대한 수직 중앙 벽 (벽타기용)
+                    { x: 550, y: 320, width: 150, height: 20 },
+                    { x: 550, y: 180, width: 100, height: 20 },
+                    { x: 40, y: 160, width: 120, height: 20 }   // 골대 발판
+                ]
+            },
+            3: {
+                name: "3. 지그재그 벽 점프 시련",
+                playerStart: { x: 50, y: 400 },
+                goal: { x: 720, y: 70 },
+                platforms: [
+                    { x: 0, y: 460, width: 200, height: 40 },
+                    { x: 300, y: 320, width: 40, height: 180 },  // 1번 벽
+                    { x: 460, y: 180, width: 40, height: 220 },  // 2번 벽
+                    { x: 620, y: 60, width: 40, height: 240 },   // 3번 벽
+                    { x: 700, y: 120, width: 100, height: 20 }
+                ]
             }
-
-            platforms.push({ x: currentX, width: 500, y: 280, type: 'normal' });
-            stageLength = currentX + 200; 
-        }
+        };
 
         function initGame(e) {
             if(e) e.stopPropagation();
-            if(gameState !== 'START') return;
             startScreen.classList.remove('active');
             loadStage(1);
         }
 
         function loadStage(stageNum) {
             currentStage = stageNum;
-            const config = stageConfigs[currentStage];
+            const mapData = stageMaps[currentStage];
             
-            speed = config.speed;
-            ball.jumpForce = config.jumpForce;
+            stageIndicator.textContent = mapData.name;
+            platforms = mapData.platforms;
+            goals = mapData.goal;
 
-            mapProgress = 0;
-            generateMap(currentStage);
-
-            // 초기 위치 안전 배치
-            ball.x = 150;
-            ball.y = 280 - ball.radius; 
-            ball.vy = 0;
-            ball.isGrounded = true; 
-            
-            keys.jump = false;
-
-            stageIndicator.textContent = config.name;
-            stageIndicator.style.backgroundColor = config.color;
-            document.getElementById('game-container').style.background = `linear-gradient(to bottom, ${config.bg}, #0e1017)`;
+            // 플레이어 초기화
+            player.x = mapData.playerStart.x;
+            player.y = mapData.playerStart.y;
+            player.vx = 0;
+            player.vy = 0;
+            player.isGrounded = false;
+            player.isWallSliding = false;
 
             closeAllScreens();
             gameState = 'PLAYING';
-
             setTimeout(() => { canvas.focus(); }, 15);
 
             if(gameLoopId) cancelAnimationFrame(gameLoopId);
@@ -305,88 +283,124 @@
             if (gameState !== 'PLAYING') return;
 
             updatePhysics();
+            checkCollisions();
             render();
 
             gameLoopId = requestAnimationFrame(gameLoop);
         }
 
         function updatePhysics() {
-            // 1. 중력 및 가변 점프 물리 적용
-            if (!ball.isGrounded && ball.vy < 0 && !keys.jump) {
-                ball.vy += ball.gravity * 1.8; // 떼면 빠르게 하강
+            // 1. 좌우 관성 이동 계산
+            if (keys.left) {
+                player.vx -= player.accel;
+                if (player.vx < -player.maxSpeed) player.vx = -player.maxSpeed;
+                player.facingDir = -1;
+            } else if (keys.right) {
+                player.vx += player.accel;
+                if (player.vx > player.maxSpeed) player.vx = player.maxSpeed;
+                player.facingDir = 1;
             } else {
-                ball.vy += ball.gravity; 
+                // 키를 떼면 미끄러지듯 서서히 멈추는 마찰력 관성 적용
+                player.vx *= player.friction;
+                if (Math.abs(player.vx) < 0.1) player.vx = 0;
             }
-            
-            ball.y += ball.vy;
-            mapProgress += speed;
 
-            // 2. 바닥 및 장애물 충돌 검사 (구조 전면 혁신)
-            let ballAbsoluteX = mapProgress + ball.x;
-            let currentOnGround = false;
+            // 2. 중력 및 벽 타기(Slide) 감속 물리 적용
+            if (player.isWallSliding && player.vy > 0) {
+                player.vy += (player.gravity * 0.2); // 벽에 붙어 흘러내릴 때는 중력 저항 추가
+                if (player.vy > player.wallSlideSpeed) player.vy = player.wallSlideSpeed;
+            } else {
+                player.vy += player.gravity;
+            }
+
+            // 위치 반영
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // 3. 맵 이탈 체크 (바닥으로 떨어지면 게임오버)
+            if (player.y > canvas.height + 40) {
+                handleGameOver();
+            }
+        }
+
+        function checkCollisions() {
+            player.isGrounded = false;
+            let onLeftWall = false;
+            let onRightWall = false;
 
             for (let plat of platforms) {
-                // X축 범위 내에 공이 들어와 있는지 체크
-                if (ballAbsoluteX + ball.radius - 2 > plat.x && ballAbsoluteX - ball.radius + 2 < plat.x + plat.width) {
-                    
-                    // 공의 바닥면이 발판의 윗면을 통과했거나 걸쳐져 있을 때 (낙하 중일 때만 판정)
-                    if (ball.vy >= 0 && ball.y + ball.radius >= plat.y - 4 && ball.y + ball.radius <= plat.y + ball.vy + 4) {
-                        ball.y = plat.y - ball.radius; // 위치 강제 스냅(고정)
-                        ball.vy = 0;
-                        currentOnGround = true;
+                // 상하 충돌 검사 (AABB 기반 정확한 보정)
+                if (player.x + player.width > plat.x && player.x < plat.x + plat.width) {
+                    // 발판 착지 (위 -> 아래 머무름)
+                    if (player.vy >= 0 && player.y + player.height >= plat.y && player.y + player.height <= plat.y + player.vy + 4) {
+                        player.y = plat.y - player.height;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                    }
+                    // 발판 천장에 머리 박음 (아래 -> 위)
+                    else if (player.vy < 0 && player.y >= plat.y + plat.height + player.vy - 1 && player.y <= plat.y + plat.height) {
+                        player.y = plat.y + plat.height;
+                        player.vy = 0;
+                    }
+                }
 
-                        if (plat.type === 'bounce') {
-                            ball.vy = -18.0; // 스프링 발판 점프 힘 강화
-                            currentOnGround = false;
-                        }
-                        break;
+                // 좌우 벽 충돌 검사 (벽 타기 판정을 위해 약간의 마진 계산)
+                if (player.y + player.height > plat.y + 2 && player.y < plat.y + plat.height - 2) {
+                    // 플레이어가 플랫폼의 왼쪽 벽에 닿음
+                    if (player.vx >= 0 && player.x + player.width >= plat.x && player.x + player.width <= plat.x + player.vx + 3) {
+                        player.x = plat.x - player.width;
+                        player.vx = 0;
+                        onRightWall = true;
+                    }
+                    // 플레이어가 플랫폼의 오른쪽 벽에 닿음
+                    else if (player.vx <= 0 && player.x <= plat.x + plat.width && player.x >= plat.x + plat.width + player.vx - 3) {
+                        player.x = plat.x + plat.width;
+                        player.vx = 0;
+                        onLeftWall = true;
                     }
                 }
             }
 
-            // 확실하게 땅 착지 상태 업데이트
-            ball.isGrounded = currentOnGround;
-
-            // 3. 점프 입력 실시간 즉시 처리 (딜레이 유발 카운터 올 삭제)
-            if (ball.isGrounded && keys.jump) {
-                ball.vy = ball.jumpForce;
-                ball.isGrounded = false;
+            // 벽타기 판정 조건 활성화 (공중에 떠 있고, 벽 쪽으로 가속 키를 입력하고 있을 때)
+            if (!player.isGrounded && ((onLeftWall && keys.left) || (onRightWall && keys.right))) {
+                player.isWallSliding = true;
+            } else {
+                player.isWallSliding = false;
             }
 
-            // 장애물 충돌 검사
-            for (let obs of obstacles) {
-                let obsScreenX = obs.x - mapProgress; 
-                if (ball.x + ball.radius - 4 > obsScreenX && ball.x - ball.radius + 4 < obsScreenX + obs.width) {
-                    if (ball.y + ball.radius - 2 > obs.y && ball.y - ball.radius + 2 < obs.y + obs.height) {
-                        handleGameOver("날카로운 가시 장애물에 찔렸습니다!");
+            // 점프 트리거 체크
+            if (keys.jump) {
+                if (player.isGrounded) {
+                    // 일반 지상 점프
+                    player.vy = player.jumpForce;
+                    player.isGrounded = false;
+                } 
+                else if (player.isWallSliding) {
+                    // 벽 점프 (밀쳐내는 반동 관성 구현)
+                    player.vy = player.jumpForce * 0.95;
+                    if (onLeftWall) {
+                        player.vx = player.maxSpeed * 1.2; // 오른쪽으로 튕겨 나감
+                    } else if (onRightWall) {
+                        player.vx = -player.maxSpeed * 1.2; // 왼쪽으로 튕겨 나감
                     }
+                    player.isWallSliding = false;
+                    keys.jump = false; // 연속 팅김 방지를 위해 키 해제
                 }
             }
 
-            // 진행도 및 아웃 판정
-            let progressPercent = Math.min((mapProgress / stageLength) * 100, 100);
-            progressBar.style.width = `${progressPercent}%`;
-            distanceTxt.textContent = `${Math.floor(mapProgress/10)}m / ${Math.floor(stageLength/10)}m`;
+            // 맵 경계선 한계 제한 보호
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
-            if (mapProgress >= stageLength - 400) {
+            // 골인 도착(목적지 별) 검사
+            if (player.x + player.width > goals.x && player.x < goals.x + goals.width &&
+                player.y + player.height > goals.y && player.y < goals.y + goals.height) {
                 handleStageClear();
             }
-
-            if (ball.y > canvas.height + 50) {
-                handleGameOver("발판 사이의 절벽으로 추락했습니다!");
-            }
         }
 
-        function handleUIScreenTransition() {
-            if (gameState === 'START') initGame();
-            else if (gameState === 'GAMEOVER') restartStage();
-            else if (gameState === 'CLEAR') nextStage();
-            else if (gameState === 'ENDING') resetWholeGame();
-        }
-
-        function handleGameOver(reason) {
+        function handleGameOver() {
             gameState = 'GAMEOVER';
-            failReasonTxt.textContent = reason;
             gameoverScreen.classList.add('active');
         }
 
@@ -396,23 +410,19 @@
                 gameState = 'ENDING';
                 endingScreen.classList.add('active');
             } else {
-                document.getElementById('clear-msg').innerHTML = `<b>STAGE ${currentStage}</b> 완주 성공!<br>다음 난이도 맵으로 이동할 준비를 하세요.`;
                 clearScreen.classList.add('active');
             }
         }
 
-        function nextStage(e) {
-            if(e) e.stopPropagation();
-            if(currentStage < maxStage) loadStage(currentStage + 1);
+        function nextStage() {
+            loadStage(currentStage + 1);
         }
 
-        function restartStage(e) {
-            if(e) e.stopPropagation();
+        function restartStage() {
             loadStage(currentStage);
         }
 
-        function resetWholeGame(e) {
-            if(e) e.stopPropagation();
+        function resetWholeGame() {
             endingScreen.classList.remove('active');
             loadStage(1);
         }
@@ -427,103 +437,55 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-            for (let i = 0; i < canvas.width + 100; i += 80) {
-                let bgX = (i - (mapProgress * 0.3)) % (canvas.width + 100);
-                if (bgX < 0) bgX += (canvas.width + 100);
-                ctx.fillRect(bgX, 50, 40, 150);
-            }
-
+            // 1. 발판/벽 그리기
             platforms.forEach(plat => {
-                let screenX = plat.x - mapProgress; 
-                if (screenX + plat.width < 0 || screenX > canvas.width) return;
-
-                if (plat.type === 'bounce') {
-                    ctx.fillStyle = '#fcc419';
-                    ctx.fillRect(screenX, plat.y, plat.width, 15);
-                    ctx.fillStyle = '#fab005';
-                    ctx.fillRect(screenX, plat.y + 15, plat.width, canvas.height - plat.y);
-                    
-                    ctx.fillStyle = "#fff";
-                    ctx.font = "bold 11px Arial";
-                    ctx.fillText("▲ SUPER ▲", screenX + 2, plat.y + 11);
-                } else {
-                    let currentThemeColor = stageConfigs[currentStage].color;
-                    ctx.fillStyle = currentThemeColor;
-                    ctx.fillRect(screenX, plat.y, plat.width, 10);
-                    ctx.fillStyle = '#212529';
-                    ctx.fillRect(screenX, plat.y + 10, plat.width, canvas.height - plat.y);
-                }
+                ctx.fillStyle = stageMaps[currentStage].color || '#4dabf7';
+                ctx.fillRect(plat.x, plat.y, plat.width, 10); // 상단 테두리 선
+                ctx.fillStyle = '#2b303c';
+                ctx.fillRect(plat.x, plat.y + 10, plat.width, plat.height - 10); // 몸체
             });
 
-            obstacles.forEach(obs => {
-                let screenX = obs.x - mapProgress;
-                if (screenX + obs.width < 0 || screenX > canvas.width) return;
-
-                ctx.fillStyle = '#ff6b6b';
-                ctx.beginPath();
-                ctx.moveTo(screenX, obs.y + obs.height);
-                ctx.lineTo(screenX + obs.width / 2, obs.y);
-                ctx.lineTo(screenX + obs.width, obs.y + obs.height);
-                ctx.closePath();
-                ctx.fill();
-            });
-
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            
-            let currentThemeColor = stageConfigs[currentStage].color;
-            ctx.fillStyle = currentThemeColor;
+            // 2. 골인 지점 (★ 모양을 흉내낸 노란색 사각형)
+            ctx.fillStyle = '#ffd43b';
             ctx.shadowBlur = 15;
-            ctx.shadowColor = currentThemeColor;
-            ctx.fill();
+            ctx.shadowColor = '#ffd43b';
+            ctx.fillRect(goals.x, goals.y, goals.width, goals.height);
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#111';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText('★', goals.x + 4, goals.y + 19);
+
+            // 3. 플레이어 오브젝트 (인간형 사각형 객체)
+            ctx.fillStyle = '#69db7c';
+            if (player.isWallSliding) ctx.fillStyle = '#ff8787'; // 벽 타는 상태일 땐 임시 색 변환 효과
+            
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = ctx.fillStyle;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
             ctx.shadowBlur = 0;
 
-            ctx.beginPath();
-            ctx.arc(ball.x - 4, ball.y - 4, 4, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.fill();
+            // 눈동자 (바라보는 방향 인지용)
+            ctx.fillStyle = '#fff';
+            let eyeOffset = player.facingDir === 1 ? 12 : 2;
+            ctx.fillRect(player.x + eyeOffset, player.y + 6, 6, 6);
         }
 
-        // 입력 바인딩 정리
+        // 키보드 핸들러 통합 구조 개편
         window.addEventListener('keydown', function(e) {
-            if (e.keyCode === 38 || e.keyCode === 32) {
-                e.preventDefault(); 
-                canvas.focus();
-                
-                if (!keys.jump) {
-                    keys.jump = true;
-                    if (gameState !== 'PLAYING') {
-                        handleUIScreenTransition();
-                    }
-                }
+            canvas.focus();
+            if ([32, 37, 38, 39, 40].includes(e.keyCode)) e.preventDefault(); // 스크롤 락
+
+            if (e.keyCode === 37 || e.keyCode === 65) keys.left = true;  // ← , A
+            if (e.keyCode === 39 || e.keyCode === 68) keys.right = true; // → , D
+            if (e.keyCode === 32 || e.keyCode === 38 || e.keyCode === 87) { // Space, ↑, W
+                keys.jump = true;
             }
         });
 
         window.addEventListener('keyup', function(e) {
-            if (e.keyCode === 38 || e.keyCode === 32) {
-                e.preventDefault();
-                keys.jump = false;
-            }
-        });
-
-        canvas.addEventListener('mousedown', function(e) {
-            canvas.focus();
-            keys.jump = true;
-            if (gameState !== 'PLAYING') handleUIScreenTransition();
-        });
-        window.addEventListener('mouseup', function(e) {
-            keys.jump = false;
-        });
-        
-        canvas.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            canvas.focus();
-            keys.jump = true;
-            if (gameState !== 'PLAYING') handleUIScreenTransition();
-        });
-        window.addEventListener('touchend', function(e) {
-            keys.jump = false;
+            if (e.keyCode === 37 || e.keyCode === 65) keys.left = false;
+            if (e.keyCode === 39 || e.keyCode === 68) keys.right = false;
+            if (e.keyCode === 32 || e.keyCode === 38 || e.keyCode === 87) keys.jump = false;
         });
     </script>
 </body>

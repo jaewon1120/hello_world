@@ -2,71 +2,74 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Survival Shooter</title>
+    <title>Survival Shooter Game</title>
     <style>
-        body { margin: 0; background: #111; color: white; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; background: #000; color: #fff; overflow: hidden; font-family: 'Arial'; }
         canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; font-size: 20px; }
     </style>
 </head>
 <body>
-<div id="ui">
-    <div id="stats">HP: 3 | Exp: 0 | Level: 1</div>
-    <div id="bossTimer"></div>
-</div>
-<canvas id="game"></canvas>
+    <div id="ui">
+        HP: <span id="hp">3</span> | EXP: <span id="exp">0</span> | Level: <span id="lv">1</span>
+        <br><span id="timer">Boss Timer: 120s</span>
+    </div>
+    <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 3, level: 1, exp: 0, weapon: 'pistol', ammo: 12 };
-let enemies = [];
-let bullets = [];
-let bossTimer = 120; // 2분
-let isMouseDown = false;
+// 게임 상태
+let player = { x: canvas.width/2, y: canvas.height/2, hp: 3, exp: 0, level: 1, ammo: 12 };
+let enemies = [], bullets = [], particles = [], bosses = [];
+let mouse = { x: 0, y: 0 };
+
+// 이펙트 클래스
+class Particle {
+    constructor(x, y, color) { this.x = x; this.y = y; this.vx = (Math.random()-0.5)*10; this.vy = (Math.random()-0.5)*10; this.alpha = 1; this.color = color; }
+    update() { this.x += this.vx; this.y += this.vy; this.alpha -= 0.05; }
+    draw() { ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 4, 4); ctx.globalAlpha = 1; }
+}
+
+// 몬스터 생성
+function spawnEnemy() {
+    enemies.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, hp: 1, type: 'normal' });
+}
 
 // 게임 루프
-function update() {
+function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 플레이어 그리기 (마우스 방향)
+
+    // 플레이어
     ctx.fillStyle = 'blue';
     ctx.fillRect(player.x-10, player.y-10, 20, 20);
 
-    // 사격 (연사 로직)
-    if (isMouseDown && player.ammo > 0) {
-        if (Math.random() < 0.2) { // 발사 속도 조절
-            bullets.push({ x: player.x, y: player.y, vx: (mouseX - player.x)/20, vy: (mouseY - player.y)/20 });
-            player.ammo--;
-        }
-    }
+    // 이펙트 업데이트
+    particles.forEach((p, i) => { p.update(); p.draw(); if(p.alpha <= 0) particles.splice(i, 1); });
 
-    // 적 스폰
-    if (Math.random() < 0.05) spawnEnemy();
-
-    // 업데이트 및 그리기
-    bullets.forEach((b, i) => {
-        b.x += b.vx; b.y += b.vy;
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(b.x, b.y, 5, 5);
+    // 몬스터 로직
+    if(Math.random() < 0.05) spawnEnemy();
+    enemies.forEach((e, i) => {
+        // 간단한 추격 로직
+        e.x += (player.x - e.x) * 0.01;
+        e.y += (player.y - e.y) * 0.01;
+        ctx.fillStyle = 'red';
+        ctx.fillRect(e.x-10, e.y-10, 20, 20);
     });
 
-    requestAnimationFrame(update);
+    requestAnimationFrame(loop);
 }
 
-function spawnEnemy() {
-    enemies.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, type: 'normal' });
-}
+// 입력 처리
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('mousedown', () => {
+    // 사격 이펙트 예시
+    for(let i=0; i<5; i++) particles.push(new Particle(mouse.x, mouse.y, 'yellow'));
+});
 
-let mouseX = 0, mouseY = 0;
-window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
-window.addEventListener('mousedown', () => isMouseDown = true);
-window.addEventListener('mouseup', () => isMouseDown = false);
-
-update();
+loop();
 </script>
 </body>
-</html>
+</html>ㅁㄴㅇ

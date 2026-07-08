@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>포물선 원버튼 플랫포머 게임 - 날씨와 벽차기</title>
+    <title>포물선 궤적 예측 원버튼 플랫포머</title>
     <style>
         body {
             margin: 0;
@@ -136,7 +136,7 @@
 </head>
 <body>
 
-    <h1>PARABOLA LONG JUMP PLATFORMER</h1>
+    <h1>PARABOLA PREDICTION PLATFORMER</h1>
     
     <div id="game-ui">
         <div style="display: flex;">
@@ -151,9 +151,9 @@
 
         <div id="start-screen" class="screen active">
             <h2 style="color: #4dabf7;">PARABOLA JUMP</h2>
-            <p>수평으로 길게 도약하는 포물선 원버튼 액션!<br>
-            벽에 붙으면 <span class="highlight">천천히 미끄러지며, 이때 점프하면 반대편으로 벽차기</span>를 합니다!<br>
-            공중에서 하늘색 구슬을 먹으면 점프 기회가 초기화되어 <span style="color:#20c997;">이단 도약</span>이 가능합니다.</p>
+            <p>포물선 수식을 기반으로 한 <span class="highlight">실시간 궤적 예측선</span> 플랫포머!<br>
+            지상이나 벽에 붙어 있을 때 뛰어오를 궤적이 점선으로 미리 노출됩니다.<br>
+            벽에 붙으면 <span class="highlight">미끄러지며(Wall Slide), 점프 시 반대 방향으로 벽차기</span>를 시도합니다.</p>
             <button class="btn" onclick="initGame(event)">게임 시작</button>
         </div>
 
@@ -171,14 +171,14 @@
 
         <div id="ending-screen" class="screen">
             <h2 style="color: #ffd43b;">🎉 PERFECT COMPLETE 🎉</h2>
-            <p>기후 변화와 멀리뛰기, 벽차기를 완벽하게 마스터하셨습니다!</p>
+            <p>포물선 수학 궤적과 기후 변화를 모두 지배하셨습니다!</p>
             <button class="btn" onclick="resetWholeGame(event)">처음부터 다시하기</button>
         </div>
     </div>
 
     <div id="info-text">
-        조작 방법: <span class="highlight">스페이스바(Space) 또는 위쪽 방향키(↑) 단 하나!</span> | 언제든 <span class="highlight">R 키</span>를 누르면 스테이지 재시작<br>
-        <span style="color:#4dabf7;">벽 슬라이드 중 점프 = 반대 방향 벽차기</span> | 날씨 효과: 🌧️ 비 (미끄러움), ❄️ 눈 (공중 제어 불가)
+        조작 방법: <span class="highlight">스페이스바(Space) 또는 위쪽 방향키(↑)</span> | 언제든지 <span class="highlight">R 키</span> 입력 시 스테이지 즉시 재시작<br>
+        <span style="color:#22d8cf;">민트색 구슬</span>을 획득하면 공중에서 예측선이 켜지며 한 번 더 포물선 대도약(2단 점프)이 가능합니다.
     </div>
 
     <script>
@@ -197,7 +197,7 @@
         let gameState = 'START'; 
         let gameLoopId;
 
-        // 플레이어 캐릭터 사양 (멀리뛰기 중심 밸런스 조정)
+        // 물리 밸런스 설정 (멀리뛰기 기반 최적화)
         let player = {
             x: 100,
             y: 400,
@@ -206,10 +206,10 @@
             vx: 0,              
             vy: 0,
             targetVx: 0,        
-            forwardSpeed: 6.5,  // 멀리뛰기를 위해 수평 이동 속도 대폭 상향
-            gravity: 0.45,      // 체공 시간을 늘리기 위해 중력 소폭 하향
-            jumpForce: -9.5,    // 높이 뛰는 대신 앞으로 가도록 점프력 하향
-            slideGravity: 1.2,  // 벽에 매달려 흘러내릴 때의 최대 낙하 속도 제한
+            forwardSpeed: 6.5,  // 수평 이동 속도 기본값
+            gravity: 0.45,      // 중력값
+            jumpForce: -9.5,    // 점프 추진력
+            slideGravity: 1.2,  // 벽면 흘러내리기 최대 속도 한계치
             isGrounded: false,
             facingDir: 1,       
             canDoubleJump: false,
@@ -219,7 +219,7 @@
 
         let isJumpKeyPressed = false;
 
-        // 날씨 시스템 관련 변수
+        // 날씨 엔진 변수
         let weatherTypes = ['SUNNY', 'RAINY', 'SNOWY'];
         let currentWeather = 'SUNNY';
         let weatherTimer = 0;
@@ -229,15 +229,13 @@
         let doubleJumpItems = []; 
         let goals = { x: 0, y: 0, width: 25, height: 25 };
 
-        // 멀리뛰기와 벽차기 콤보 중심의 신규 맵 레이아웃
+        // 예측선 맵 디자인 구조
         const stageMaps = {
             1: {
-                name: "1. 포물선 멀리뛰기 적응",
+                name: "1. 궤적 예측선과 포물선 원리",
                 playerStart: { x: 40, y: 350, dir: 1 },
                 goal: { x: 730, y: 320 },
-                items: [
-                    { x: 380, y: 280, radius: 8, active: true } // 공중 이단점프 구슬
-                ],
+                items: [{ x: 380, y: 270, radius: 8, active: true }],
                 platforms: [
                     { x: 0, y: 420, width: 150, height: 80 },    
                     { x: 480, y: 380, width: 140, height: 40 },
@@ -245,28 +243,28 @@
                 ]
             },
             2: {
-                name: "2. 벽 슬라이드와 연속 벽차기",
+                name: "2. 벽 슬라이드와 각도 계산",
                 playerStart: { x: 40, y: 350, dir: 1 },
                 goal: { x: 70, y: 120 },
                 items: [],
                 platforms: [
                     { x: 0, y: 420, width: 100, height: 80 },   
-                    { x: 320, y: 200, width: 40, height: 300 },   // 중앙 벽차기 기둥 왼쪽면/오른쪽면 활용
-                    { x: 680, y: 100, width: 50, height: 400 },   // 우측 대형 벽면
-                    { x: 30, y: 180, width: 110, height: 40 }     // 목표 지점 발판
+                    { x: 340, y: 220, width: 40, height: 280 },   
+                    { x: 680, y: 100, width: 50, height: 400 },   
+                    { x: 30, y: 180, width: 110, height: 40 }     
                 ]
             },
             3: {
-                name: "3. 극한의 기후와 공중 대도약",
+                name: "3. 극한 관성과 유도 대도약",
                 playerStart: { x: 40, y: 400, dir: 1 },
                 goal: { x: 720, y: 120 },
                 items: [
-                    { x: 260, y: 300, radius: 8, active: true },
-                    { x: 500, y: 200, radius: 8, active: true }
+                    { x: 260, y: 290, radius: 8, active: true },
+                    { x: 500, y: 190, radius: 8, active: true }
                 ],
                 platforms: [
                     { x: 0, y: 460, width: 90, height: 40 },    
-                    { x: 380, y: 340, width: 40, height: 160 },   // 중간 디딤돌 벽
+                    { x: 380, y: 340, width: 40, height: 160 },   
                     { x: 650, y: 180, width: 150, height: 320 }   
                 ]
             }
@@ -288,7 +286,6 @@
             
             doubleJumpItems = mapData.items ? mapData.items.map(item => ({ ...item, active: true })) : [];
 
-            // 플레이어 초기화
             player.facingDir = mapData.playerStart.dir;
             player.x = mapData.playerStart.x;
             player.y = mapData.playerStart.y;
@@ -305,7 +302,6 @@
             updateWeatherUI();
 
             isJumpKeyPressed = false;
-
             closeAllScreens();
             gameState = 'PLAYING';
             setTimeout(() => { canvas.focus(); }, 15);
@@ -344,20 +340,30 @@
                 weatherIndicator.innerHTML = "날씨: 🌧️ 비 (미끄러움)";
                 weatherIndicator.style.background = "#ff922b";
             } else if (currentWeather === 'SNOWY') {
-                weatherIndicator.innerHTML = "날씨: ❄️ 눈 (공중 관성 증가!)";
+                weatherIndicator.innerHTML = "날씨: ❄️ 눈 (미끄러운 관성!)";
                 weatherIndicator.style.background = "#339af0";
             }
         }
 
+        function getAccelValue() {
+            if (player.isGrounded) {
+                if (currentWeather === 'SUNNY') return 0.4;
+                if (currentWeather === 'RAINY') return 0.15;
+                if (currentWeather === 'SNOWY') return 0.05; 
+            } else {
+                if (currentWeather === 'SUNNY') return 0.15;
+                if (currentWeather === 'RAINY') return 0.08;
+                if (currentWeather === 'SNOWY') return 0.02; 
+            }
+            return 1.0;
+        }
+
         function updatePhysics() {
-            // 1. 중력 및 벽 슬라이드 감속 처리
             if (!player.isGrounded) {
                 if (player.isTouchingWall && player.vy > 0) {
-                    // 벽에 붙어서 내려올 때는 마찰력 때문에 천천히 떨어짐 (Wall Slide)
                     player.vy += (player.gravity * 0.3);
                     if (player.vy > player.slideGravity) player.vy = player.slideGravity;
                 } else {
-                    // 가변 점프 및 기본 중력
                     if (player.vy < 0 && !isJumpKeyPressed) {
                         player.vy += player.gravity * 2.2; 
                     } else {
@@ -369,18 +375,7 @@
                 player.targetVx = 0; 
             }
 
-            // 2. 기후에 따른 관성 제어
-            let accel = 1.0; 
-            if (player.isGrounded) {
-                if (currentWeather === 'SUNNY') accel = 0.4;
-                else if (currentWeather === 'RAINY') accel = 0.15;
-                else if (currentWeather === 'SNOWY') accel = 0.05; 
-            } else {
-                if (currentWeather === 'SUNNY') accel = 0.15;
-                else if (currentWeather === 'RAINY') accel = 0.08;
-                else if (currentWeather === 'SNOWY') accel = 0.02; // 눈 올 때는 공중 제어가 거의 불가능하여 튕겨나간 관성 유지
-            }
-
+            let accel = getAccelValue();
             player.vx += (player.targetVx - player.vx) * accel;
 
             player.x += player.vx;
@@ -397,7 +392,6 @@
             player.isTouchingWall = false;
             player.wallDir = 0;
 
-            // 맵 양쪽 끝 벽 판정 및 슬라이드 연계
             if (player.x <= 0) {
                 player.x = 0;
                 if (!wasGrounded && player.vy >= 0) {
@@ -412,15 +406,12 @@
                 }
             }
 
-            // 플랫폼 충돌 검사
             for (let plat of platforms) {
-                // 상하 착지 및 머리 박기 판정
                 if (player.x + player.width > plat.x && player.x < plat.x + plat.width) {
                     if (player.vy >= 0 && player.y + player.height >= plat.y && player.y + player.height <= plat.y + player.vy + 6) {
                         player.y = plat.y - player.height;
                         player.vy = 0;
                         player.isGrounded = true;
-                        // 지상에 착지하면 이단점프 권한은 사라짐 (아이템을 먹어야만 공중 점프 가능)
                         player.canDoubleJump = false; 
                     }
                     else if (player.vy < 0 && player.y >= plat.y + plat.height + player.vy - 1 && player.y <= plat.y + plat.height) {
@@ -429,9 +420,7 @@
                     }
                 }
 
-                // 옆면 벽 슬라이드 판정 고도화
                 if (player.y + player.height > plat.y + 2 && player.y < plat.y + plat.height - 2) {
-                    // 왼쪽에서 벽에 부딪힘 (오른쪽에 벽이 있음)
                     if (player.x + player.width >= plat.x && player.x + player.width <= plat.x + Math.max(player.vx, 0) + 5) {
                         player.x = plat.x - player.width;
                         if (!player.isGrounded && player.vy >= 0) {
@@ -439,7 +428,6 @@
                             player.wallDir = 1; 
                         }
                     }
-                    // 오른쪽에서 벽에 부딪힘 (왼쪽에 벽이 있음)
                     else if (player.x <= plat.x + plat.width && player.x >= plat.x + plat.width + Math.min(player.vx, 0) - 5) {
                         player.x = plat.x + plat.width;
                         if (!player.isGrounded && player.vy >= 0) {
@@ -450,7 +438,6 @@
                 }
             }
 
-            // 아이템(이단도약 구슬) 획득 판정
             doubleJumpItems.forEach(item => {
                 if (item.active) {
                     let centerX = player.x + player.width / 2;
@@ -459,46 +446,101 @@
                     
                     if (dist < player.width/2 + item.radius) {
                         item.active = false;      
-                        player.canDoubleJump = true; // 먹는 즉시 다시 공중 도약 가능 권한 부여
+                        player.canDoubleJump = true; 
                     }
                 }
             });
 
-            // 목적지 도달
             if (player.x + player.width > goals.x && player.x < goals.x + goals.width &&
                 player.y + player.height > goals.y && player.y < goals.y + goals.height) {
                 handleStageClear();
             }
         }
 
-        // 포물선 및 자동 반대방향 벽차기 액션 엔진
         function triggerJumpAction() {
             if (gameState !== 'PLAYING') return;
 
-            // 1순위: 벽 슬라이드 중 벽차기 (반대편으로 밀어내며 멀리뛰기 포물선 생성)
             if (!player.isGrounded && player.isTouchingWall) {
-                player.facingDir = player.wallDir === 1 ? -1 : 1; // 붙어있던 벽의 반대 방향으로 즉시 전환
-                player.vy = player.jumpForce * 0.95;             // 도약 높이
+                player.facingDir = player.wallDir === 1 ? -1 : 1; 
+                player.vy = player.jumpForce * 0.95;             
                 player.targetVx = player.forwardSpeed * player.facingDir; 
-                player.vx = player.targetVx;                     // 수평 속도 즉시 반영
+                player.vx = player.targetVx;                     
                 player.isTouchingWall = false;
                 return;
             }
 
-            // 2순위: 지상 일반 멀리뛰기 도약
             if (player.isGrounded) {
                 player.vy = player.jumpForce;
                 player.targetVx = player.forwardSpeed * player.facingDir;
                 player.vx = player.targetVx;
                 player.isGrounded = false;
             } 
-            // 3순위: 공중에서 구슬을 먹었을 때 발동하는 추가 이단 멀리뛰기
             else if (player.canDoubleJump) {
                 player.vy = player.jumpForce * 0.9; 
                 player.targetVx = player.forwardSpeed * player.facingDir;
                 player.vx = player.targetVx;
-                player.canDoubleJump = false; // 소모성
+                player.canDoubleJump = false; 
             }
+        }
+
+        // 블로그 연계 방식: 가상 시뮬레이션을 통해 미래의 30프레임 궤적을 렌더링에 실시간 투사
+        function drawPredictionLine() {
+            if (!player.isGrounded && !player.isTouchingWall && !player.canDoubleJump) return;
+
+            // 가상의 임시 시뮬레이션 물리값 세팅
+            let simX = player.x;
+            let simY = player.y;
+            let simVx = player.vx;
+            let simVy = player.vy;
+            let simTargetVx = player.targetVx;
+            let simFacingDir = player.facingDir;
+
+            // 만약 점프를 뛴다면? 이라는 가상의 입력 반영 연산
+            if (!player.isGrounded && player.isTouchingWall) {
+                simFacingDir = player.wallDir === 1 ? -1 : 1;
+                simVy = player.jumpForce * 0.95;
+                simTargetVx = player.forwardSpeed * simFacingDir;
+                simVx = simTargetVx;
+            } else if (player.isGrounded) {
+                simVy = player.jumpForce;
+                simTargetVx = player.forwardSpeed * simFacingDir;
+                simVx = simTargetVx;
+            } else if (player.canDoubleJump) {
+                simVy = player.jumpForce * 0.9;
+                simTargetVx = player.forwardSpeed * simFacingDir;
+                simVx = simTargetVx;
+            }
+
+            ctx.beginPath();
+            ctx.strokeStyle = player.canDoubleJump ? '#20c997' : 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]); // 점선 형태 출력
+
+            // 플레이어 중심점 보정
+            let startX = simX + player.width / 2;
+            let startY = simY + player.height / 2;
+            ctx.moveTo(startX, startY);
+
+            let simAccel = 0.15; // 공중 기본 관성 상수로 계산
+            if (currentWeather === 'RAINY') simAccel = 0.08;
+            if (currentWeather === 'SNOWY') simAccel = 0.02;
+
+            // 35프레임 앞의 미래 경로를 실시간 수학 선형 보간으로 추적
+            for (let i = 0; i < 35; i++) {
+                simVy += player.gravity;
+                simVx += (simTargetVx - simVx) * simAccel;
+                simX += simVx;
+                simY += simVy;
+
+                // 화면 범위 제한 걸어서 그리기
+                let currentX = Math.max(0, Math.min(canvas.width, simX + player.width/2));
+                let currentY = simY + player.height/2;
+
+                ctx.lineTo(currentX, currentY);
+                if (currentY > canvas.height) break; // 바닥 이하 추락 시 연산 조기 종료
+            }
+            ctx.stroke();
+            ctx.setLineDash([]); // 다시 실선 상태 복원
         }
 
         function handleUIScreenTransition() {
@@ -536,7 +578,7 @@
         function render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 기후 배경 연출
+            // 기후 배경 이펙트
             if (currentWeather === 'RAINY') {
                 ctx.fillStyle = 'rgba(73, 80, 87, 0.15)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -558,7 +600,10 @@
                 }
             }
 
-            // 플랫폼 렌더링
+            // 실시간 포물선 궤적 라인 연출 레이어
+            drawPredictionLine();
+
+            // 플랫폼 구조물
             platforms.forEach(plat => {
                 ctx.fillStyle = '#4dabf7';
                 ctx.fillRect(plat.x, plat.y, plat.width, 10);
@@ -566,7 +611,7 @@
                 ctx.fillRect(plat.x, plat.y + 10, plat.width, plat.height - 10);
             });
 
-            // 2단점프 충전 구슬 오브젝트 렌더링
+            // 점프 충전 구슬 오브젝트
             doubleJumpItems.forEach(item => {
                 if (item.active) {
                     ctx.beginPath();
@@ -584,7 +629,7 @@
                 }
             });
 
-            // 목적지 상자
+            // 목적지 포탈 별
             ctx.fillStyle = '#ffd43b';
             ctx.shadowBlur = 15;
             ctx.shadowColor = '#ffd43b';
@@ -594,9 +639,9 @@
             ctx.font = 'bold 16px Arial';
             ctx.fillText('★', goals.x + 4, goals.y + 19);
 
-            // 플레이어 모델링 (벽 슬라이드 상태 시 주황색 테두리 효과 발생)
+            // 플레이어 그리기
             if (player.isTouchingWall) ctx.fillStyle = '#ff922b';
-            else if (player.canDoubleJump) ctx.fillStyle = '#20c997'; // 2단점프 활성화 시 민트빛 변화
+            else if (player.canDoubleJump) ctx.fillStyle = '#20c997'; 
             else ctx.fillStyle = '#69db7c';
             
             ctx.shadowBlur = 10;
@@ -604,17 +649,15 @@
             ctx.fillRect(player.x, player.y, player.width, player.height);
             ctx.shadowBlur = 0;
 
-            // 시선 표현
             ctx.fillStyle = '#111';
             let eyeOffset = player.facingDir === 1 ? 14 : 2;
             ctx.fillRect(player.x + eyeOffset, player.y + 6, 4, 6);
         }
 
-        // 키 입력 처리 모듈 (R키 기능 탑재)
+        // 키 다운 컨트롤 마스터 (R키 리스타트 매핑완료)
         window.addEventListener('keydown', function(e) {
             canvas.focus();
 
-            // R 또는 r 입력 시 무조건 현재 스테이지 리셋
             if (e.key === 'r' || e.key === 'R') {
                 e.preventDefault();
                 if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {

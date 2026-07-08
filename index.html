@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>탑뷰 슈팅 서바이벌 게임</title>
+    <title>탑뷰 슈팅 서바이벌 - 하드코어 보스 레이드</title>
     <style>
         body {
             margin: 0;
@@ -53,7 +53,6 @@
             cursor: crosshair;
         }
 
-        /* 화면 오버레이 공통 스타일 */
         .overlay-screen {
             position: absolute;
             top: 0;
@@ -101,7 +100,6 @@
             transform: translateY(-2px);
         }
 
-        /* 레벨업 선택지 스타일 */
         #upgrade-container {
             display: flex;
             gap: 15px;
@@ -141,27 +139,66 @@
             color: #c5a880;
             font-size: 0.85rem;
         }
+
+        #boss-warning {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            color: #ff3e3e;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 20px #ff0000;
+            display: none;
+            z-index: 5;
+            animation: blink 0.5s infinite alternate;
+        }
+
+        #boss-timer-ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 62, 62, 0.2);
+            border: 2px solid #ff3e3e;
+            padding: 5px 20px;
+            border-radius: 20px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ff3e3e;
+            display: none;
+            z-index: 5;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
 
-    <h1>TOP-DOWN SHOOTING SURVIVAL</h1>
+    <h1>TOP-DOWN SURVIVAL: HARDCORE</h1>
 
     <div id="ui-container">
+        <div>HP: <span id="ui-hp" style="color:#ff6b6b;">❤️❤️❤️</span></div>
         <div>LEVEL: <span id="ui-level" style="color:#66fcf1;">1</span></div>
         <div>SCORE: <span id="ui-score" style="color:#ffd43b;">0</span></div>
         <div>TIME: <span id="ui-time">0.0s</span></div>
     </div>
 
     <div id="game-wrapper">
+        <div id="boss-warning">⚠️ WARNING: BOSS APPROACHING ⚠️</div>
+        <div id="boss-timer-ui">타임어택: 120.0s</div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
 
         <!-- 시작 화면 -->
         <div id="start-screen" class="overlay-screen active">
-            <h2 style="color: #66fcf1;">SURVIVAL START</h2>
+            <h2 style="color: #66fcf1;">HARDCORE START</h2>
             <p style="color: #c5a8c8; margin-bottom: 25px; line-height: 1.6;">
-                WASD 키로 이동하고 마우스로 적을 겨냥해 격추하세요!<br>
-                보석을 모아 레벨업을 하고 더 강력하게 진화하세요.
+                WASD 이동 / 마우스 조준 / 좌클릭 발사<br>
+                목숨은 단 3개! 보석을 모아 성장하고 드랍되는 회복 킷을 획득하세요.<br>
+                <span style="color:#ff3e3e; font-weight:bold;">⚠️ 45초마다 등장하는 보스를 2분 안에 처치하지 못하면 즉시 패배합니다!</span>
             </p>
             <button class="btn" onclick="startGame()">살아남기 시작</button>
         </div>
@@ -169,30 +206,29 @@
         <!-- 레벨업 화면 -->
         <div id="levelup-screen" class="overlay-screen">
             <h2 style="color: #ffd43b;">LEVEL UP!</h2>
-            <p>영구 보너스 능력치를 선택하세요.</p>
-            <div id="upgrade-container">
-                <!-- 자바스크립트로 동적 카드 생성 -->
-            </div>
+            <p>보너스 능력치를 선택하세요.</p>
+            <div id="upgrade-container"></div>
         </div>
 
         <!-- 게임오버 화면 -->
         <div id="gameover-screen" class="overlay-screen">
-            <h2 style="color: #ff6b6b;">GAME OVER</h2>
-            <p>끝까지 버틴 시간: <span id="result-time" style="color:#66fcf1;">0s</span><br>
+            <h2 style="color: #ff6b6b;" id="gameover-title">GAME OVER</h2>
+            <p id="gameover-reason"></p>
+            <p>버틴 시간: <span id="result-time" style="color:#66fcf1;">0s</span><br>
             최종 처치 점수: <span id="result-score" style="color:#ffd43b;">0</span></p>
             <button class="btn" onclick="startGame()">다시 도전하기 (R)</button>
         </div>
     </div>
 
     <div id="info-text">
-        이동: [W, A, S, D] | 조준: [마우스 커서] | 발사: [마우스 좌클릭 유지 가능] | 재시작: [R]
+        이동: [W, A, S, D] | 조준: [마우스] | 발사: [좌클릭] | 재시작: [R]
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // UI 요소 엘리먼트
+        const uiHp = document.getElementById('ui-hp');
         const uiLevel = document.getElementById('ui-level');
         const uiScore = document.getElementById('ui-score');
         const uiTime = document.getElementById('ui-time');
@@ -202,305 +238,424 @@
         const upgradeContainer = document.getElementById('upgrade-container');
         const resultTime = document.getElementById('result-time');
         const resultScore = document.getElementById('result-score');
+        const bossWarning = document.getElementById('boss-warning');
+        const bossTimerUi = document.getElementById('boss-timer-ui');
+        const gameoverTitle = document.getElementById('gameover-title');
+        const gameoverReason = document.getElementById('gameover-reason');
 
-        // 게임 상태 시스템
-        let gameState = 'START'; // START, PLAYING, LEVELUP, GAMEOVER
+        let gameState = 'START';
         let score = 0;
         let gameTime = 0;
         let lastTime = 0;
         let spawnTimer = 0;
-        let spawnInterval = 1500; // 적 생성 주기 (ms) - 시간 지날수록 감소
+        let spawnInterval = 1600;
 
-        // 키 바인딩 맵
+        // 보스 관련 설정
+        let bossSpawnTimer = 0;
+        const BOSS_INTERVAL = 45; 
+        let isBossActive = false;
+        let bossTimeLeft = 120; // 보스 타임어택 제한시간 (2분)
+        let bossIndex = 0; // 보스 종류 순환 인덱스
+        const bossNames = ["네크로맨서", "타이탄", "하이브마인드", "블링크 자이언트", "둠스데이"];
+
+        // 무적 시간(피격 후 잠깐 반짝임)
+        let invincibilityTimer = 0;
+
+        let shakeIntensity = 0;
+
         const keys = { w: false, a: false, s: false, d: false };
         const mouse = { x: 0, y: 0, isPressed: false };
 
-        // 객체 저장소 배열
         let player;
         let bullets = [];
+        let enemyBullets = []; 
         let enemies = [];
         let gems = [];
+        let items = []; // 회복 아이템 배열
+        let particles = []; 
 
-        // 능력치 업그레이드 풀 정의
         const upgrades = [
             { type: 'DAMAGE', title: '화력 강화', desc: '총알 공격력 +1' },
-            { type: 'FIRERATE', title: '속사 기어', desc: '공격 연사 속도 +20%' },
-            { type: 'SPEED', title: '경량 부츠', desc: '플레이어 이동 속도 +15%' },
-            { type: 'MAX_HP', title: '외골격 강화', desc: '최대 체력 +20 및 전량 회복' },
-            { type: 'PIERCE', title: '관통 탄환', desc: '총알 관통 횟수 +1' }
+            { type: 'FIRERATE', title: '속사 기어', desc: '공격 연사 속도 +25%' },
+            { type: 'SPEED', title: '경량 부츠', desc: '이동 속도 +15%' },
+            { type: 'PIERCE', title: '관통 탄환', desc: '총알 관통 횟수 +1' },
+            { type: 'HEAL', title: '구급 상자', desc: '체력을 1 회복합니다.' }
         ];
 
-        // 플레이어 클래스 구성
-        class Player {
+        // 회복 아이템 클래스
+        class RecoveryItem {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                this.radius = 16;
-                this.baseSpeed = 3.2;
-                this.speedMultiplier = 1.0;
-                this.hp = 100;
-                this.maxHp = 100;
-                
-                // 레벨 성장 관련
-                this.level = 1;
-                this.exp = 0;
-                this.nextExp = 10;
-
-                // 무기 관련 능력치
-                this.damage = 1;
-                this.shootCooldown = 0;
-                this.baseShootInterval = 350; // 발사 간격 (ms)
-                this.fireRateMultiplier = 1.0;
-                this.bulletPierce = 1;
+                this.radius = 10;
+                this.toRemove = false;
             }
+            update() {
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                if (dist < 50) { // 자석 효과
+                    this.x += ((player.x - this.x) / dist) * 3;
+                    this.y += ((player.y - this.y) / dist) * 3;
+                }
+                if (dist < this.radius + player.radius) {
+                    if (player.hp < player.maxHp) player.hp++;
+                    this.toRemove = true;
+                    updateHpUi();
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#2b8a3e';
+                ctx.fill();
+                // 십자가 표시
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(this.x - 2, this.y - 7, 4, 14);
+                ctx.fillRect(this.x - 7, this.y - 2, 14, 4);
+                ctx.restore();
+            }
+        }
 
+        class Particle {
+            constructor(x, y, color, isBossDebris = false) {
+                this.x = x; this.y = y; this.color = color;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = isBossDebris ? (Math.random() * 6 + 2) : (Math.random() * 3 + 1);
+                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+                this.radius = isBossDebris ? Math.random() * 5 + 2 : Math.random() * 3 + 1;
+                this.alpha = 1;
+                this.decay = isBossDebris ? Math.random() * 0.01 + 0.008 : Math.random() * 0.03 + 0.02;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.alpha -= this.decay; }
+            draw() {
+                ctx.save(); ctx.globalAlpha = this.alpha; ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+            }
+        }
+
+        class EnemyBullet {
+            constructor(x, y, angle, speed, color, radius = 6, isHoming = false) {
+                this.x = x; this.y = y;
+                this.speed = speed;
+                this.angle = angle;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.radius = radius;
+                this.color = color;
+                this.toRemove = false;
+                this.isHoming = isHoming;
+                this.lifeTime = 0;
+            }
+            update(dt) {
+                if (this.isHoming && this.lifeTime < 1500) { // 1.5초 동안 유도 작동
+                    this.lifeTime += dt;
+                    const targetAngle = Math.atan2(player.x - this.x, player.x - this.x); // 단순 추적 연산
+                    const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+                    this.vx = Math.cos(angleToPlayer) * this.speed;
+                    this.vy = Math.sin(angleToPlayer) * this.speed;
+                }
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < -20 || this.x > canvas.width + 20 || this.y < -20 || this.y > canvas.height + 20) {
+                    this.toRemove = true;
+                }
+
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+                if (dist < this.radius + player.radius) {
+                    this.toRemove = true;
+                    playerHit();
+                }
+            }
+            draw() {
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.shadowBlur = 8; ctx.shadowColor = this.color; ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+
+        class Player {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.radius = 15;
+                this.baseSpeed = 3.3; this.speedMultiplier = 1.0;
+                this.hp = 3; this.maxHp = 3;
+                this.level = 1; this.exp = 0; this.nextExp = 10;
+                this.damage = 1; this.shootCooldown = 0; this.baseShootInterval = 300;
+                this.fireRateMultiplier = 1.0; this.bulletPierce = 1;
+            }
             get speed() { return this.baseSpeed * this.speedMultiplier; }
             get shootInterval() { return this.baseShootInterval / this.fireRateMultiplier; }
 
             update(dt) {
-                // 1. 플레이어 이동 로직 처리
-                let moveX = 0;
-                let moveY = 0;
-                if (keys.w) moveY -= 1;
-                if (keys.s) moveY += 1;
-                if (keys.a) moveX -= 1;
-                if (keys.d) moveX += 1;
-
-                if (moveX !== 0 && moveY !== 0) {
-                    // 대각선 이동 속도 평준화 보정
-                    moveX *= 0.7071;
-                    moveY *= 0.7071;
-                }
-
-                this.x += moveX * this.speed;
-                this.y += moveY * this.speed;
-
-                // 화면 경계선 월 락(Wall Lock) 제한
+                let moveX = 0; let moveY = 0;
+                if (keys.w) moveY -= 1; if (keys.s) moveY += 1;
+                if (keys.a) moveX -= 1; if (keys.d) moveX += 1;
+                if (moveX !== 0 && moveY !== 0) { moveX *= 0.7071; moveY *= 0.7071; }
+                this.x += moveX * this.speed; this.y += moveY * this.speed;
                 this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
                 this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
 
-                // 2. 공격 쿨다운 제어 및 자동 연사
-                if (this.shootCooldown > 0) {
-                    this.shootCooldown -= dt;
-                }
-
+                if (this.shootCooldown > 0) this.shootCooldown -= dt;
                 if (mouse.isPressed && this.shootCooldown <= 0) {
                     this.shoot();
                     this.shootCooldown = this.shootInterval;
                 }
             }
-
             shoot() {
-                // 플레이어 중심에서 마우스 포인터 방향 각도 연산
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
                 bullets.push(new Bullet(this.x, this.y, angle, this.damage, this.bulletPierce));
             }
-
             gainExp(amount) {
                 this.exp += amount;
                 if (this.exp >= this.nextExp) {
                     this.exp -= this.nextExp;
                     this.level++;
-                    this.nextExp = Math.floor(this.nextExp * 1.4) + 5;
+                    this.nextExp = Math.floor(this.nextExp * 1.4) + 6;
                     triggerLevelUp();
                 }
             }
-
             draw() {
+                if (invincibilityTimer > 0 && Math.floor(invincibilityTimer / 100) % 2 === 0) return; // 피격 시 반짝임 효과
                 ctx.save();
                 ctx.translate(this.x, this.y);
-                
-                // 마우스 방향을 향해 캐릭터 회전 연출
                 const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
                 ctx.rotate(angle);
-
-                // 플레이어 메인 바디
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#66fcf1';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#66fcf1';
-                ctx.fill();
-                ctx.shadowBlur = 0;
-
-                // 조준 총구 방향 인디케이터 사각형
-                ctx.fillStyle = '#1f2833';
-                ctx.fillRect(0, -5, 22, 10);
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#66fcf1'; ctx.shadowBlur = 10; ctx.shadowColor = '#66fcf1'; ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = '#1f2833'; ctx.fillRect(0, -4, 20, 8);
                 ctx.restore();
-
-                // 체력 바 인터페이스 렌더링
-                const barW = 40;
-                const barH = 5;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fillRect(this.x - barW / 2, this.y - this.radius - 12, barW, barH);
-                
-                const hpRatio = Math.max(0, this.hp / this.maxHp);
-                ctx.fillStyle = hpRatio > 0.3 ? '#45a29e' : '#ff6b6b';
-                ctx.fillRect(this.x - barW / 2, this.y - this.radius - 12, barW * hpRatio, barH);
             }
         }
 
-        // 총알 클래스 구성
         class Bullet {
             constructor(x, y, angle, damage, pierce) {
-                this.x = x;
-                this.y = y;
-                this.speed = 7;
-                this.vx = Math.cos(angle) * this.speed;
-                this.vy = Math.sin(angle) * this.speed;
-                this.radius = 4;
-                this.damage = damage;
-                this.pierce = pierce;
-                this.toRemove = false;
+                this.x = x; this.y = y; this.speed = 9;
+                this.vx = Math.cos(angle) * this.speed; this.vy = Math.sin(angle) * this.speed;
+                this.radius = 4; this.damage = damage; this.pierce = pierce; this.toRemove = false;
             }
-
             update() {
-                this.x += this.vx;
-                this.y += this.vy;
-
-                // 화면 밖으로 이탈 시 제거 태그 플래그 전환
-                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
-                    this.toRemove = true;
-                }
+                this.x += this.vx; this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.toRemove = true;
             }
-
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffd43b';
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffd43b'; ctx.fill();
             }
         }
 
-        // 적 추격자 클래스 구성
         class Enemy {
             constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.type = type; // 'NORMAL', 'FAST', 'TANK'
-                this.toRemove = false;
+                this.x = x; this.y = y; this.type = type; this.toRemove = false;
+                this.isBoss = type.startsWith('BOSS_');
+                this.abilityTimer = 0;
+                this.bossName = "";
 
-                // 타입별 고유 스펙 다형성 분기
+                // 원거리 몹 전용 변수
+                this.shootCooldown = Math.random() * 2000; 
+
+                // 블링크 보스 전용 변수
+                this.blinkX = 0; this.blinkY = 0; this.isBlinking = false;
+
                 if (type === 'FAST') {
-                    this.radius = 12;
-                    this.speed = 2.4;
-                    this.hp = 1;
-                    this.color = '#ff8787';
-                    this.expValue = 1;
-                } else if (type === 'TANK') {
-                    this.radius = 24;
-                    this.speed = 1.0;
-                    this.hp = 6;
-                    this.color = '#be4bdb';
-                    this.expValue = 5;
-                } else {
-                    this.radius = 15;
-                    this.speed = 1.6;
-                    this.hp = 3;
-                    this.color = '#a9e34b';
-                    this.expValue = 2;
+                    this.radius = 11; this.speed = 2.6; this.hp = 1; this.color = '#ff6b6b'; this.expValue = 1;
+                } else if (type === 'SHOOTER') {
+                    this.radius = 14; this.speed = 1.2; this.hp = 2; this.color = '#339af0'; this.expValue = 2;
+                } else if (type === 'BOSS_NECROMANCER') {
+                    this.radius = 32; this.speed = 0.8; this.hp = 45; this.color = '#cc5de8'; this.expValue = 20; this.bossName = bossNames[0];
+                } else if (type === 'BOSS_TITAN') {
+                    this.radius = 36; this.speed = 0.6; this.hp = 70; this.color = '#fcc419'; this.expValue = 25; this.bossName = bossNames[1];
+                } else if (type === 'BOSS_HIVEMIND') {
+                    this.radius = 34; this.speed = 0.7; this.hp = 55; this.color = '#ff922b'; this.expValue = 25; this.bossName = bossNames[2];
+                } else if (type === 'BOSS_BLINK') {
+                    this.radius = 35; this.speed = 1.0; this.hp = 60; this.color = '#20c997'; this.expValue = 30; this.bossName = bossNames[3];
+                } else if (type === 'BOSS_DOOMSDAY') {
+                    this.radius = 38; this.speed = 0.5; this.hp = 85; this.color = '#f03e3e'; this.expValue = 40; this.bossName = bossNames[4];
+                } else { // NORMAL
+                    this.radius = 15; this.speed = 1.6; this.hp = 3; this.color = '#51cf66'; this.expValue = 2;
                 }
+                this.maxHp = this.hp;
             }
 
-            update() {
-                // 무조건 최단거리 플레이어 벡터를 향해 등속 추적 추격 진행
+            update(dt) {
                 const dx = player.x - this.x;
                 const dy = player.y - this.y;
                 const dist = Math.hypot(dx, dy);
 
-                if (dist > 0) {
-                    this.x += (dx / dist) * this.speed;
-                    this.y += (dy / dist) * this.speed;
+                // 1. 기본 이동 AI 분기
+                if (this.type === 'SHOOTER') {
+                    // 원거리 슈터는 일정 거리를 유지하려 함
+                    if (dist > 250) {
+                        this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed;
+                    } else if (dist < 180) {
+                        this.x -= (dx / dist) * this.speed; this.y -= (dy / dist) * this.speed;
+                    }
+                    
+                    // 원거리 사격 타이머
+                    this.shootCooldown += dt;
+                    if (this.shootCooldown >= 2500) {
+                        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+                        enemyBullets.push(new EnemyBullet(this.x, this.y, angle, 4.5, '#339af0', 5));
+                        this.shootCooldown = 0;
+                    }
+                } else if (this.type === 'BOSS_BLINK' && this.isBlinking) {
+                    // 블링크 보스 시전 중에는 이동 멈춤
+                } else {
+                    if (dist > 0) {
+                        this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed;
+                    }
                 }
 
-                // 플레이어 본체와의 충돌 대미지 전이 검사
+                // 2. 플레이어와 직접 충돌 체크
                 if (dist < this.radius + player.radius) {
-                    player.hp -= 0.5; // 프레임 단위 누적 도트 피해 유발
-                    if (player.hp <= 0) {
-                        handleGameOver();
+                    playerHit();
+                }
+
+                // 3. 보스별 고유 특수 능력 시전 패턴 (종류: 5가지)
+                if (this.isBoss) {
+                    this.abilityTimer += dt;
+
+                    // [보스 1] 네크로맨서: 부하 신속 소환
+                    if (this.type === 'BOSS_NECROMANCER' && this.abilityTimer >= 4000) {
+                        for(let i=0; i<4; i++) {
+                            enemies.push(new Enemy(this.x + (Math.random()-0.5)*80, this.y + (Math.random()-0.5)*80, 'FAST'));
+                        }
+                        this.abilityTimer = 0;
+                    }
+                    // [보스 2] 타이탄: 방사형 탄막
+                    else if (this.type === 'BOSS_TITAN' && this.abilityTimer >= 2200) {
+                        for (let i = 0; i < 8; i++) {
+                            enemyBullets.push(new EnemyBullet(this.x, this.y, (Math.PI / 4) * i, 3.5, '#fcc419', 7));
+                        }
+                        this.abilityTimer = 0;
+                    }
+                    // [보스 3] 하이브마인드: 맵 외부 런타임 급습자 소환
+                    else if (this.type === 'BOSS_HIVEMIND' && this.abilityTimer >= 3000) {
+                        for (let i = 0; i < 3; i++) {
+                            enemies.push(new Enemy(Math.random()*canvas.width, -20, 'FAST'));
+                        }
+                        this.abilityTimer = 0;
+                    }
+                    // [보스 4] 블링크 자이언트: 기습 순간이동 강습
+                    else if (this.type === 'BOSS_BLINK') {
+                        if (!this.isBlinking && this.abilityTimer >= 3500) {
+                            this.isBlinking = true;
+                            this.blinkX = player.x;
+                            this.blinkY = player.y;
+                            this.abilityTimer = 0; 
+                        }
+                        if (this.isBlinking && this.abilityTimer >= 1000) { // 예고선 1초 후 순간이동 완료하며 탄막 발산
+                            createExplosion(this.x, this.y, this.color, false);
+                            this.x = this.blinkX;
+                            this.y = this.blinkY;
+                            this.isBlinking = false;
+                            this.abilityTimer = 0;
+                            shakeIntensity = 10;
+                            for (let i = 0; i < 6; i++) {
+                                enemyBullets.push(new EnemyBullet(this.x, this.y, (Math.PI / 3) * i, 5, '#20c997', 6));
+                            }
+                        }
+                    }
+                    // [보스 5] 둠스데이: 거대 유도탄 사격
+                    else if (this.type === 'BOSS_DOOMSDAY' && this.abilityTimer >= 2800) {
+                        for(let i=0; i<3; i++){
+                            const angle = Math.atan2(player.y - this.y, player.x - this.x) + (Math.random() - 0.5);
+                            enemyBullets.push(new EnemyBullet(this.x, this.y, angle, 4, '#f03e3e', 10, true));
+                        }
+                        this.abilityTimer = 0;
                     }
                 }
             }
 
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
-                ctx.fill();
+                // 블링크 보스 텔레포트 낙하 지점 사전 예고선 바닥 징표
+                if (this.type === 'BOSS_BLINK' && this.isBlinking) {
+                    ctx.save();
+                    ctx.beginPath(); ctx.arc(this.blinkX, this.blinkY, this.radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(32, 201, 151, 0.6)'; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.fillStyle = 'rgba(32, 201, 151, 0.2)'; ctx.fill();
+                    ctx.restore();
+                }
+
+                // 원거리 슈터 조준선 가이드 레이저
+                if (this.type === 'SHOOTER' && this.shootCooldown > 1500) {
+                    ctx.save();
+                    ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(player.x, player.y);
+                    ctx.strokeStyle = 'rgba(255, 212, 59, 0.25)'; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.restore();
+                }
+
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color; ctx.fill();
+                ctx.strokeStyle = '#0b0c10'; ctx.lineWidth = this.isBoss ? 3 : 2; ctx.stroke();
                 
-                // 몬스터 테두리 가시선 추가
-                ctx.strokeStyle = '#0b0c10';
-                ctx.lineWidth = 2;
-                ctx.stroke();
+                if (this.isBoss) {
+                    const barW = this.radius * 2;
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 15, barW, 6);
+                    ctx.fillStyle = '#ff3e3e'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 15, barW * (this.hp / this.maxHp), 6);
+                }
             }
         }
 
-        // 경험치 젬 아이템 클래스 구성
         class ExpGem {
-            constructor(x, y, value) {
-                this.x = x;
-                this.y = y;
-                this.radius = 5;
-                this.value = value;
-                this.toRemove = false;
-            }
-
+            constructor(x, y, value) { this.x = x; this.y = y; this.radius = 5; this.value = value; this.toRemove = false; }
             update() {
-                const dx = player.x - this.x;
-                const dy = player.y - this.y;
-                const dist = Math.hypot(dx, dy);
-
-                // 마그네틱 자성 인력 시스템 효과 (가까워지면 플레이어 쪽으로 급격히 끌려옴)
-                if (dist < 85) {
-                    this.x += (dx / dist) * 4.5;
-                    this.y += (dy / dist) * 4.5;
-                }
-
-                if (dist < this.radius + player.radius) {
-                    player.gainExp(this.value);
-                    this.toRemove = true;
-                    score += this.value * 10;
-                }
+                const dx = player.x - this.x; const dy = player.y - this.y; const dist = Math.hypot(dx, dy);
+                if (dist < 90) { this.x += (dx / dist) * 5.5; this.y += (dy / dist) * 5.5; }
+                if (dist < this.radius + player.radius) { player.gainExp(this.value); this.toRemove = true; score += this.value * 10; }
             }
+            draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = '#ffd43b'; ctx.fill(); }
+        }
 
-            draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffd43b';
-                ctx.fill();
+        function playerHit() {
+            if (invincibilityTimer > 0 || gameState !== 'PLAYING') return;
+            player.hp--;
+            invincibilityTimer = 1200; // 피격 후 1.2초 무적 고정
+            shakeIntensity = 12;
+            updateHpUi();
+            if (player.hp <= 0) handleGameOver('HP_ZERO');
+        }
+
+        function updateHpUi() {
+            let heartStr = "";
+            for(let i=0; i<player.maxHp; i++) {
+                heartStr += (i < player.hp) ? "❤️" : "🖤";
+            }
+            uiHp.textContent = heartStr;
+        }
+
+        function createExplosion(x, y, color, isBoss = false) {
+            const count = isBoss ? 70 : 12;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color, isBoss));
+            }
+            if (isBoss) {
+                shakeIntensity = 25;
+                isBossActive = false;
+                bossTimerUi.style.display = 'none';
             }
         }
 
-        // 초기 게임 데이터 리셋 및 구동 함수
-        function startGame() {
-            score = 0;
-            gameTime = 0;
-            spawnTimer = 0;
-            spawnInterval = 1500;
+        function spawnBoss() {
+            const currentBossType = ['BOSS_NECROMANCER', 'BOSS_TITAN', 'BOSS_HIVEMIND', 'BOSS_BLINK', 'BOSS_DOOMSDAY'][bossIndex % 5];
+            const currentBossName = bossNames[bossIndex % 5];
+            bossIndex++;
+
+            bossWarning.textContent = `⚠️ BOSS: [${currentBossName}] 등장을 감지함 ⚠️`;
+            bossWarning.style.display = 'block';
+            setTimeout(() => { bossWarning.style.display = 'none'; }, 2500);
+
+            const spawnX = Math.random() < 0.5 ? -40 : canvas.width + 40;
+            const spawnY = Math.random() * canvas.height;
             
-            bullets = [];
-            enemies = [];
-            gems = [];
-
-            player = new Player(canvas.width / 2, canvas.height / 2);
-
-            // 오버레이 인터페이스 싹 비우기 해제
-            startScreen.classList.remove('active');
-            levelupScreen.classList.remove('active');
-            gameoverScreen.classList.remove('active');
-
-            gameState = 'PLAYING';
-            lastTime = performance.now();
-            
-            // 포커스 강제 고정
-            canvas.focus();
+            enemies.push(new Enemy(spawnX, spawnY, currentBossType));
+            isBossActive = true;
+            bossTimeLeft = 120; // 2분 충전 타이머 발동
+            bossTimerUi.style.display = 'block';
         }
 
-        // 난이도 비례 몬스터 웨이브 생성 연산기
         function spawnEnemy() {
-            let spawnX, spawnY;
+            if (isBossActive) return; 
             
-            // 화면 바깥 사각 외곽 라인 중 한 곳의 무작위 스폰 좌표 설정 규칙
+            let spawnX, spawnY;
             if (Math.random() < 0.5) {
                 spawnX = Math.random() < 0.5 ? -30 : canvas.width + 30;
                 spawnY = Math.random() * canvas.height;
@@ -509,70 +664,85 @@
                 spawnY = Math.random() < 0.5 ? -30 : canvas.height + 30;
             }
 
-            // 생존 시간에 따라 강력한 적 가중치 확률 대입
             const rand = Math.random();
             let type = 'NORMAL';
-            
-            if (gameTime > 50 && rand < 0.20) {
-                type = 'TANK';
-            } else if (gameTime > 20 && rand < 0.35) {
-                type = 'FAST';
-            } else if (gameTime > 90 && rand < 0.40) {
-                type = 'TANK';
-            }
+            if (rand < 0.25) type = 'FAST';
+            else if (rand < 0.45) type = 'SHOOTER';
 
             enemies.push(new Enemy(spawnX, spawnY, type));
         }
 
-        // 레벨업 선택지 팝업 트리거
+        function startGame() {
+            score = 0; gameTime = 0; spawnTimer = 0; bossSpawnTimer = 0;
+            spawnInterval = 1600; isBossActive = false; shakeIntensity = 0; invincibilityTimer = 0; bossIndex = 0;
+            bullets = []; enemyBullets = []; enemies = []; gems = []; items = []; particles = [];
+            
+            player = new Player(canvas.width / 2, canvas.height / 2);
+            updateHpUi();
+
+            startScreen.classList.remove('active');
+            levelupScreen.classList.remove('active');
+            gameoverScreen.classList.remove('active');
+            bossWarning.style.display = 'none';
+            bossTimerUi.style.display = 'none';
+
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            canvas.focus();
+        }
+
         function triggerLevelUp() {
             gameState = 'LEVELUP';
             levelupScreen.classList.add('active');
             upgradeContainer.innerHTML = '';
-
-            // 셔플 알고리즘을 이용해 무작위 중복 없는 특성 3가지 슬롯 배치 추출
+            
             const shuffled = [...upgrades].sort(() => 0.5 - Math.random());
             const selectedUpgrades = shuffled.slice(0, 3);
 
             selectedUpgrades.forEach(up => {
                 const card = document.createElement('div');
                 card.className = 'upgrade-card';
-                card.innerHTML = `
-                    <div class="upgrade-title">${up.title}</div>
-                    <div class="upgrade-desc">${up.desc}</div>
-                `;
+                card.innerHTML = `<div class="upgrade-title">${up.title}</div><div class="upgrade-desc">${up.desc}</div>`;
                 card.onclick = () => applyUpgrade(up.type);
                 upgradeContainer.appendChild(card);
             });
         }
 
-        // 특성 강화 적용 모듈 함수
         function applyUpgrade(type) {
-            switch(type) {
-                case 'DAMAGE': player.damage += 1; break;
-                case 'FIRERATE': player.fireRateMultiplier += 0.25; break;
-                case 'SPEED': player.speedMultiplier += 0.15; break;
-                case 'MAX_HP': 
-                    player.maxHp += 20; 
-                    player.hp = player.maxHp; 
-                    break;
-                case 'PIERCE': player.bulletPierce += 1; break;
+            if (type === 'HEAL') {
+                if (player.hp < player.maxHp) player.hp++;
+                updateHpUi();
+            } else {
+                switch(type) {
+                    case 'DAMAGE': player.damage += 1; break;
+                    case 'FIRERATE': player.fireRateMultiplier += 0.25; break;
+                    case 'SPEED': player.speedMultiplier += 0.15; break;
+                    case 'PIERCE': player.bulletPierce += 1; break;
+                }
             }
-
             levelupScreen.classList.remove('active');
             gameState = 'PLAYING';
-            lastTime = performance.now(); // 타이머 미스매칭 누적 튀는 현상 리셋
+            lastTime = performance.now();
         }
 
-        // 게임오버 트리거 프로세스
-        function handleGameOver() {
+        function handleGameOver(reason) {
             gameState = 'GAMEOVER';
             resultTime.textContent = gameTime.toFixed(1) + "초";
             resultScore.textContent = score;
+            
+            if (reason === 'TIMEOUT') {
+                gameoverTitle.textContent = "TIME OUT (패배)";
+                gameoverReason.textContent = "⚠️ 보스를 제한 시간(2분) 내에 격파하지 못해 무참히 패배했습니다.";
+            } else {
+                gameoverTitle.textContent = "GAME OVER";
+                gameoverReason.textContent = "☠️ 모든 체력을 잃고 생존에 실패했습니다.";
+            }
+            
             gameoverScreen.classList.add('active');
+            bossWarning.style.display = 'none';
+            bossTimerUi.style.display = 'none';
         }
 
-        // 메인 프레임 액션 메인 파이프라인 루프 규칙
         function loop(timestamp) {
             if (gameState === 'PLAYING') {
                 const dt = timestamp - lastTime;
@@ -580,22 +750,40 @@
 
                 gameTime += dt / 1000;
                 spawnTimer += dt;
+                
+                if (invincibilityTimer > 0) invincibilityTimer -= dt;
 
-                // 점진적 주기 압축으로 난이도 상승 연동 곡선 설계
-                const currentInterval = Math.max(400, spawnInterval - (gameTime * 6));
+                if (!isBossActive) {
+                    bossSpawnTimer += dt / 1000;
+                    if (bossSpawnTimer >= BOSS_INTERVAL) {
+                        spawnBoss();
+                        bossSpawnTimer = 0;
+                    }
+                } else {
+                    // 보스 타임어택 제한시간 차감 연산
+                    bossTimeLeft -= dt / 1000;
+                    bossTimerUi.textContent = `보스전 제한시간: ${Math.max(0, bossTimeLeft).toFixed(1)}s`;
+                    if (bossTimeLeft <= 0) {
+                        handleGameOver('TIMEOUT');
+                        return;
+                    }
+                }
+
+                const currentInterval = Math.max(500, spawnInterval - (gameTime * 6));
                 if (spawnTimer >= currentInterval) {
                     spawnEnemy();
                     spawnTimer = 0;
                 }
 
-                // 1. 데이터 업데이트 전개
                 player.update(dt);
-
                 bullets.forEach(b => b.update());
-                enemies.forEach(e => e.update());
+                enemyBullets.forEach(eb => eb.update(dt));
+                enemies.forEach(e => e.update(dt));
                 gems.forEach(g => g.update());
+                items.forEach(it => it.update());
+                particles.forEach(p => p.update());
 
-                // 2. 총알 vs 적 정밀 AABB구체 충돌 감지 레이어
+                // 충돌 판정 루프
                 for (let b of bullets) {
                     for (let e of enemies) {
                         if (!b.toRemove && !e.toRemove) {
@@ -607,94 +795,83 @@
 
                                 if (e.hp <= 0) {
                                     e.toRemove = true;
+                                    createExplosion(e.x, e.y, e.color, e.isBoss);
+                                    
+                                    // 몬스터 사망 시 보석 드랍 + 10% 확률로 회복 킷 드랍
                                     gems.push(new ExpGem(e.x, e.y, e.expValue));
+                                    if (!e.isBoss && Math.random() < 0.10) {
+                                        items.push(new RecoveryItem(e.x, e.y));
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                // 3. 필터링 청소 정리 가비지 컬렉션 배열 압축 정리
                 bullets = bullets.filter(b => !b.toRemove);
+                enemyBullets = enemyBullets.filter(eb => !eb.toRemove);
                 enemies = enemies.filter(e => !e.toRemove);
                 gems = gems.filter(g => !g.toRemove);
+                items = items.filter(it => !it.toRemove);
+                particles = particles.filter(p => p.alpha > 0);
 
-                // 4. 리얼타임 DOM 데이터 실시간 리프레시 반영
                 uiLevel.textContent = player.level;
                 uiScore.textContent = score;
                 uiTime.textContent = gameTime.toFixed(1) + "s";
 
-                // 5. 드로우 렌더링 페인팅 프로세스
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // 가시성 바닥 그리드 배경 장식선
-                ctx.strokeStyle = '#1a222d';
-                ctx.lineWidth = 1;
-                for(let i=0; i<canvas.width; i+=40) {
-                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+
+                ctx.save();
+                if (shakeIntensity > 0) {
+                    ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity);
+                    shakeIntensity *= 0.88;
+                    if (shakeIntensity < 0.2) shakeIntensity = 0;
                 }
-                for(let j=0; j<canvas.height; j+=40) {
-                    ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
-                }
+
+                // 바닥 격자 패턴
+                ctx.strokeStyle = '#1a222d'; ctx.lineWidth = 1;
+                for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+                for(let j=0; j<canvas.height; j+=40) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke(); }
 
                 gems.forEach(g => g.draw());
+                items.forEach(it => it.draw());
+                particles.forEach(p => p.draw());
                 bullets.forEach(b => b.draw());
+                enemyBullets.forEach(eb => eb.draw());
                 enemies.forEach(e => e.draw());
                 player.draw();
+                
+                ctx.restore();
 
-                // 상단 가로축 전체 경험치 바 레이아웃 렌더링
-                ctx.fillStyle = '#273242';
-                ctx.fillRect(0, 0, canvas.width, 6);
-                ctx.fillStyle = '#ffd43b';
-                ctx.fillRect(0, 0, canvas.width * (player.exp / player.nextExp), 6);
+                // 레벨 경험치 바
+                ctx.fillStyle = '#273242'; ctx.fillRect(0, 0, canvas.width, 6);
+                ctx.fillStyle = '#ffd43b'; ctx.fillRect(0, 0, canvas.width * (player.exp / player.nextExp), 6);
             } else {
-                // 일시정지(레벨업창 등) 상태일 때 누적 시간 스킵 튀는 폭발 방지 방어코드
                 lastTime = timestamp;
             }
-
             requestAnimationFrame(loop);
         }
 
-        // 이벤트리스너 마운트 핸들러 관리 매핑 영역
         window.addEventListener('keydown', e => {
             const k = e.key.toLowerCase();
             if (k in keys) keys[k] = true;
-
-            // R 키를 통한 긴급 게임 리셋 대응
-            if (k === 'r') {
-                if (gameState === 'GAMEOVER' || gameState === 'START') startGame();
-            }
+            if (k === 'r' && (gameState === 'GAMEOVER' || gameState === 'START')) startGame();
         });
-
         window.addEventListener('keyup', e => {
             const k = e.key.toLowerCase();
             if (k in keys) keys[k] = false;
         });
 
-        // 마우스 상대좌표 위치 추적 바인딩 함수
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
-
         window.addEventListener('mousemove', e => {
-            const pos = getMousePos(e);
-            mouse.x = pos.x;
-            mouse.y = pos.y;
+            const pos = getMousePos(e); mouse.x = pos.x; mouse.y = pos.y;
         });
+        window.addEventListener('mousedown', e => { if (e.button === 0) mouse.isPressed = true; });
+        window.addEventListener('mouseup', e => { if (e.button === 0) mouse.isPressed = false; });
 
-        window.addEventListener('mousedown', e => {
-            if (e.button === 0) mouse.isPressed = true;
-        });
-
-        window.addEventListener('mouseup', e => {
-            if (e.button === 0) mouse.isPressed = false;
-        });
-
-        // 브라우저 프레임 동기화엔진 구동 시작
         requestAnimationFrame(loop);
     </script>
 </body>

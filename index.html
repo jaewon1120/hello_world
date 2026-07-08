@@ -3,52 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>클래식 지렁이 게임</title>
+    <title>홉스(Hops) 스타일 7스테이지 점프 게임</title>
     <style>
         body {
-            background-color: #222;
+            margin: 0;
+            padding: 0;
+            background: #11131e;
             color: #fff;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Malgun Gothic', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            margin: 0;
             overflow: hidden;
+            user-select: none;
         }
 
         h1 {
-            margin-bottom: 10px;
-            font-size: 2.5rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 5px 0;
+            font-size: 1.8rem;
+            color: #4dabf7;
+            text-shadow: 0 0 10px rgba(77, 171, 247, 0.5);
         }
 
-        #score-board {
-            font-size: 1.2rem;
-            margin-bottom: 20px;
+        #game-ui {
+            width: 800px;
             display: flex;
-            gap: 20px;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        #stage-indicator {
+            background: #22b8cf;
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: #111;
         }
 
         #game-container {
             position: relative;
-            border: 4px solid #444;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-            background-color: #111;
+            width: 800px;
+            height: 400px;
+            border: 4px solid #343a40;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            background: linear-gradient(to bottom, #1a1c29, #0e1017);
+            overflow: hidden;
         }
 
         canvas {
             display: block;
         }
 
-        #game-over-screen {
+        .screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.75);
+            background: rgba(14, 16, 23, 0.85);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -56,289 +73,476 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease;
+            text-align: center;
         }
 
-        #game-over-screen.show {
+        .screen.active {
             opacity: 1;
             pointer-events: auto;
         }
 
-        #game-over-screen h2 {
-            color: #ff4757;
-            font-size: 3rem;
+        .screen h2 {
+            font-size: 2.5rem;
             margin-bottom: 10px;
         }
 
-        #game-over-screen p {
-            font-size: 1.2rem;
+        .screen p {
+            font-size: 1.1rem;
+            color: #adb5bd;
             margin-bottom: 20px;
-            color: #ddd;
+            line-height: 1.6;
         }
 
-        button {
-            padding: 12px 24px;
-            font-size: 1.1rem;
-            background-color: #2ed573;
-            color: white;
+        .btn {
+            background: #4dabf7;
+            color: #111;
             border: none;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
             border-radius: 5px;
             cursor: pointer;
-            font-weight: bold;
-            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 4px 15px rgba(77, 171, 247, 0.4);
+            transition: all 0.2s;
         }
 
-        button:hover {
-            background-color: #26af5f;
+        .btn:hover {
+            background: #74c0fc;
+            transform: translateY(-2px);
         }
 
-        button:active {
-            transform: scale(0.95);
+        .btn:active {
+            transform: translateY(1px);
         }
 
-        .controls-info {
-            margin-top: 20px;
+        #info-text {
+            margin-top: 15px;
+            color: #868e96;
             font-size: 0.9rem;
-            color: #888;
             text-align: center;
+        }
+
+        .highlight {
+            color: #ff8787;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <h1>SNAKE GAME</h1>
+    <h1>HOPS JUMP</h1>
     
-    <div id="score-board">
-        <div>현재 점수: <span id="current-score">0</span></div>
-        <div>최고 점수: <span id="high-score">0</span></div>
+    <div id="game-ui">
+        <div id="stage-indicator">STAGE 1</div>
+        <div id="progress-bar-container" style="width: 300px; height: 12px; background: #343a40; border-radius: 6px; overflow: hidden; position: relative;">
+            <div id="progress-bar" style="width: 0%; height: 100%; background: #5c7cfa; transition: width 0.1s linear;"></div>
+        </div>
+        <div>목표 거리: <span id="distance-txt">0m / 100m</span></div>
     </div>
 
     <div id="game-container">
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
-        <div id="game-over-screen">
-            <h2>GAME OVER</h2>
-            <p>최종 점수: <span id="final-score">0</span></p>
-            <button id="retry-btn">다시 시작 (Space)</button>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+        <div id="start-screen" class="screen active">
+            <h2 style="color: #4dabf7;">HOPS JUMPERS</h2>
+            <p>공은 자동으로 앞으로 굴러갑니다.<br>바닥에 닿는 순간 정확히 타이밍을 맞춰 뛰어넘으세요!<br>총 7개의 스테이지가 당신을 기다립니다.</p>
+            <button class="btn" onclick="initGame()">게임 시작 (Up 방향키 / Space)</button>
+        </div>
+
+        <div id="gameover-screen" class="screen">
+            <h2 style="color: #ff6b6b;">GAME OVER</h2>
+            <p id="fail-reason">발판에서 떨어졌습니다!</p>
+            <button class="btn" onclick="restartStage()">현재 스테이지 재시작</button>
+        </div>
+
+        <div id="clear-screen" class="screen">
+            <h2 style="color: #69db7c;">STAGE CLEAR!</h2>
+            <p id="clear-msg">훌륭합니다! 다음 단계로 나아갑니다.</p>
+            <button class="btn" id="next-btn" onclick="nextStage()">다음 스테이지 시작</button>
+        </div>
+
+        <div id="ending-screen" class="screen">
+            <h2 style="color: #ffd43b;">🎉 ALL STAGES CLEARED! 🎉</h2>
+            <p>당신은 진정한 점프의 마스터입니다!<br>7개의 모든 험난한 맵을 완벽하게 정복했습니다.</p>
+            <button class="btn" onclick="resetWholeGame()">처음부터 다시하기</button>
         </div>
     </div>
 
-    <div class="controls-info">
-        방향키(↑, ↓, ←, →)로 조작하세요.
+    <div id="info-text">
+        조작 방법: <span class="highlight">위쪽 방향키(↑)</span> 또는 <span class="highlight">스페이스바(Space)</span>로 점프! (연타가 아닌 바닥 터치 타이밍 중요)
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('current-score');
-        const highScoreEl = document.getElementById('high-score');
-        const finalScoreEl = document.getElementById('final-score');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const retryBtn = document.getElementById('retry-btn');
 
-        // 게임 설정 변수
-        const gridSize = 20;
-        const tileCount = canvas.width / gridSize;
+        // 상태창 UI 엘리먼트
+        const stageIndicator = document.getElementById('stage-indicator');
+        const distanceTxt = document.getElementById('distance-txt');
+        const progressBar = document.getElementById('progress-bar');
         
-        let snake = [];
-        let food = { x: 0, y: 0 };
-        let dx = gridSize; // X축 이동 속도/방향
-        let dy = 0;        // Y축 이동 속도/방향
-        let score = 0;
-        let highScore = localStorage.getItem('snakeHighScore') || 0;
-        let gameInterval;
-        const gameSpeed = 100; // 게임 속도 (밀리초 단위, 낮을수록 빠름)
-        let changingDirection = false; // 한 프레임에 여러번 방향 전환 방지
+        // 화면 UI 엘리먼트
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const clearScreen = document.getElementById('clear-screen');
+        const endingScreen = document.getElementById('ending-screen');
+        const failReasonTxt = document.getElementById('fail-reason');
 
-        highScoreEl.textContent = highScore;
+        // 게임 핵심 변수들
+        let currentStage = 1;
+        const maxStage = 7;
+        let gameState = 'START'; // START, PLAYING, GAMEOVER, CLEAR, ENDING
+        let gameLoopId;
 
-        // 게임 시작 및 초기화
-        function startGame() {
-            snake = [
-                { x: gridSize * 5, y: gridSize * 5 },
-                { x: gridSize * 4, y: gridSize * 5 },
-                { x: gridSize * 3, y: gridSize * 5 }
-            ];
-            dx = gridSize;
-            dy = 0;
-            score = 0;
-            scoreEl.textContent = score;
-            gameOverScreen.classList.remove('show');
-            createFood();
-            
-            if (gameInterval) clearInterval(gameInterval);
-            gameInterval = setInterval(gameLoop, gameSpeed);
+        // 플레이어 캐릭터 (공) 사양
+        let ball = {
+            x: 150,
+            y: 200,
+            radius: 14,
+            vy: 0,
+            gravity: 0.6,
+            jumpForce: -11.5,
+            isGrounded: false,
+            canJumpBonus: false // 바닥에 닿는 순간 점프 활성화를 위한 타이밍용 플래그
+        };
+
+        // 카메라 및 맵 전역 변수
+        let mapProgress = 0; // 플레이어가 나아간 x 좌표 총량
+        let stageLength = 2000; // 각 스테이지 기본 픽셀 길이 (미터 환산용)
+        let speed = 4.5; // 전진 속도
+        let platforms = [];
+        let obstacles = [];
+
+        // 7개 스테이지별 컨셉 정의
+        const stageConfigs = {
+            1: { name: "1. 기본 훈련장", speed: 4.5, jumpForce: -11.5, color: "#4dabf7", bg: "#1a1c29", desc: "안정적인 기본 발판 위에서 점프 리듬을 익히세요." },
+            2: { name: "2. 좁아지는 길", speed: 5.0, jumpForce: -11.5, color: "#22b8cf", bg: "#142525", desc: "발판이 점점 좁아집니다! 정확성이 필요합니다." },
+            3: { name: "3. 스파이크 가시밭", speed: 5.2, jumpForce: -12.0, color: "#ff8787", bg: "#2b1616", desc: "빨간색 가시 장애물이 추가됩니다. 닿지 않게 높게 뛰세요." },
+            4: { name: "4. 가속 롤러코스터", speed: 6.5, jumpForce: -13.0, color: "#fcc419", bg: "#2b2610", desc: "이동 속도가 대폭 증가합니다. 번개 같은 반사신경이 필요합니다." },
+            5: { name: "5. 점프대 실험실", speed: 5.5, jumpForce: -10.0, color: "#da77f2", bg: "#251429", desc: "기본 점프력이 낮아지지만, 맵에 노란색 고성능 슈퍼 점프 패드가 배치됩니다." },
+            6: { name: "6. 연속 징검다리", speed: 5.2, jumpForce: -11.5, color: "#20c997", bg: "#102921", desc: "매우 짧은 발판들이 정교하게 연속 배치됩니다. 리듬을 유지하세요." },
+            7: { name: "7. 인페르노 디 오리진", speed: 7.0, jumpForce: -13.0, color: "#ff922b", bg: "#29190e", desc: "최종 난이도! 초고속 전진, 좁은 발판, 수많은 가시가 뒤섞인 지옥의 코스입니다." }
+        };
+
+        // 맵 생성 함수 (스테이지별 규칙 부여)
+        function generateMap(stage) {
+            platforms = [];
+            obstacles = [];
+            let currentX = 0;
+            const config = stageConfigs[stage];
+
+            // 1. 시작 구역은 안전한 긴 발판 배치
+            platforms.push({ x: 0, width: 600, y: 280, type: 'normal' });
+            currentX = 600;
+
+            // 2. 스테이지 타겟 길이에 도달할 때까지 무작위 패턴 생성
+            while (currentX < stageLength) {
+                let gap = Math.random() * 80 + 70; // 발판 사이 공백 (70px ~ 150px)
+                let platWidth = Math.random() * 150 + 100; // 발판 너비 기본
+                let type = 'normal';
+
+                // 스테이지별 변형
+                if (stage === 2) platWidth = Math.random() * 80 + 50; // 좁은 발판
+                if (stage === 6) { platWidth = 45; gap = 110; } // 정교한 징검다리
+
+                currentX += gap;
+
+                // 5스테이지 특수 발판 (슈퍼 점프패드) 무작위 섞기
+                if (stage === 5 && Math.random() > 0.6) {
+                    type = 'bounce';
+                    platWidth = 60;
+                }
+
+                platforms.push({ x: currentX, width: platWidth, y: 280, type: type });
+
+                // 3, 7스테이지 가시 장애물 설치 (발판 위 중간에 배치)
+                if ((stage === 3 || stage === 7) && Math.random() > 0.4 && platWidth > 80) {
+                    obstacles.push({
+                        x: currentX + (platWidth / 2) - 10,
+                        y: 280 - 20,
+                        width: 20,
+                        height: 20
+                    });
+                }
+
+                currentX += platWidth;
+            }
+
+            // 3. 마지막 도착 구역 안전 발판 설치
+            platforms.push({ x: currentX, width: 500, y: 280, type: 'normal' });
+            stageLength = currentX + 200; // 최종 맵 길이 확정
         }
 
-        // 메인 게임 루프
+        // 게임 엔진 구동 기초 설정
+        function initGame() {
+            if(gameState !== 'START') return;
+            startScreen.classList.remove('active');
+            loadStage(1);
+        }
+
+        function loadStage(stageNum) {
+            currentStage = stageNum;
+            const config = stageConfigs[currentStage];
+            
+            // 물리 사양 동적 변경
+            speed = config.speed;
+            ball.jumpForce = config.jumpForce;
+
+            // 스테이지 맵 새로 생성
+            mapProgress = 0;
+            generateMap(currentStage);
+
+            // 공 리셋 위치
+            ball.x = 150;
+            ball.y = 200;
+            ball.vy = 0;
+            ball.isGrounded = false;
+
+            // UI 변경
+            stageIndicator.textContent = config.name;
+            stageIndicator.style.backgroundColor = config.color;
+            document.getElementById('game-container').style.background = `linear-gradient(to bottom, ${config.bg}, #0e1017)`;
+
+            // 스크린 정리 및 게임 시작
+            closeAllScreens();
+            gameState = 'PLAYING';
+
+            if(gameLoopId) cancelAnimationFrame(gameLoopId);
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        // 루프 업데이트
         function gameLoop() {
-            if (hasGameEnded()) {
-                handleGameOver();
-                return;
-            }
+            if (gameState !== 'PLAYING') return;
 
-            changingDirection = false;
-            clearCanvas();
-            drawFood();
-            moveSnake();
-            drawSnake();
+            updatePhysics();
+            checkCollisions();
+            render();
+
+            gameLoopId = requestAnimationFrame(gameLoop);
         }
 
-        // 배경 그리기
-        function clearCanvas() {
-            ctx.fillStyle = '#111';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // 미세한 모눈종이 격자선 효과 (선택사항)
-            ctx.strokeStyle = '#1a1a1a';
-            for(let i=0; i<canvas.width; i+=gridSize) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, canvas.height);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(0, i);
-                ctx.lineTo(canvas.width, i);
-                ctx.stroke();
+        // 물리 연산 처리
+        function updatePhysics() {
+            // 중력 적용
+            ball.vy += ball.gravity;
+            ball.y += ball.vy;
+
+            // 화면을 우측으로 전진시키는 효과 (맵 진행도 누적)
+            mapProgress += speed;
+
+            // UI에 진행도 퍼센트 및 미터 반영
+            let progressPercent = Math.min((mapProgress / stageLength) * 100, 100);
+            progressBar.style.width = `${progressPercent}%`;
+            distanceTxt.textContent = `${Math.floor(mapProgress/10)}m / ${Math.floor(stageLength/10)}m`;
+
+            // 스테이지 완주 조건 달성
+            if (mapProgress >= stageLength - 400) {
+                handleStageClear();
+            }
+
+            // 바닥 낙사 체크 (화면 밑으로 뚫고 사라질 시 실패)
+            if (ball.y > canvas.height + 50) {
+                handleGameOver("발판 사이의 절벽으로 추락했습니다!");
             }
         }
 
-        // 지렁이 그리기
-        function drawSnake() {
-            snake.forEach((part, index) => {
-                // 머리는 조금 더 밝은 녹색, 몸통은 일반 녹색
-                ctx.fillStyle = index === 0 ? '#2ed573' : '#26af5f';
-                ctx.fillRect(part.x, part.y, gridSize - 2, gridSize - 2); // 테두리 효과를 위해 -2
+        // 충돌 및 타이밍 검사 (지면 발판 및 가시 장애물)
+        function checkCollisions() {
+            let wasGrounded = ball.isGrounded;
+            ball.isGrounded = false;
+
+            // 현재 화면 상 가상의 좌표계를 연산하기 위해 공의 절대 X좌표 구함
+            let ballAbsoluteX = mapProgress + ball.x;
+
+            // 1. 발판 충돌 확인
+            for (let plat of platforms) {
+                // 현재 카메라 이동값 감안하여 플레이어가 발판 범위 내에 수평으로 위치해 있는지 판별
+                if (ballAbsoluteX + ball.radius > plat.x && ballAbsoluteX - ball.radius < plat.x + plat.width) {
+                    // 공의 아랫부분이 발판 표면을 스치거나 뚫고 내려오려는 순간 판정
+                    if (ball.y + ball.radius >= plat.y && ball.y - ball.radius + ball.vy <= plat.y) {
+                        
+                        ball.y = plat.y - ball.radius; // 발판 위에 정렬 고정
+                        ball.vy = 0;
+                        ball.isGrounded = true;
+
+                        // [홉스 핵심 리듬 메커니즘]
+                        // 슈퍼 점프 패드 유형 발판인 경우 무조건 자동 또는 거대 반발력 제공
+                        if (plat.type === 'bounce') {
+                            ball.vy = -16.5; // 슈퍼 점프 유도
+                            ball.isGrounded = false;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // 2. 가시 장애물 충돌 확인
+            for (let obs of obstacles) {
+                let obsScreenX = obs.x - mapProgress; // 화면 상의 가시 X좌표
                 
-                // 눈 그리기 (머리일 때만)
-                if(index === 0) {
-                    ctx.fillStyle = '#000';
-                    ctx.fillRect(part.x + 4, part.y + 4, 3, 3);
+                // 원형 공과 사각형 가시의 충돌 연산 범위 간소화 처리
+                if (ball.x + ball.radius - 4 > obsScreenX && ball.x - ball.radius + 4 < obsScreenX + obs.width) {
+                    if (ball.y + ball.radius - 2 > obs.y && ball.y - ball.radius + 2 < obs.y + obs.height) {
+                        handleGameOver("날카로운 가시 장애물에 찔렸습니다!");
+                    }
+                }
+            }
+        }
+
+        // 조작 처리 트리거 (오직 위쪽 방향키와 스페이스바)
+        function triggerJump() {
+            if (gameState === 'PLAYING') {
+                // 발판에 확실하게 붙어 서 있을때만 점프 명령 작동 유효
+                if (ball.isGrounded) {
+                    ball.vy = ball.jumpForce;
+                    ball.isGrounded = false;
+                }
+            } else if (gameState === 'START') {
+                initGame();
+            } else if (gameState === 'GAMEOVER') {
+                restartStage();
+            } else if (gameState === 'CLEAR') {
+                nextStage();
+            } else if (gameState === 'ENDING') {
+                resetWholeGame();
+            }
+        }
+
+        // 게임오버 트리거
+        function handleGameOver(reason) {
+            gameState = 'GAMEOVER';
+            failReasonTxt.textContent = reason;
+            gameoverScreen.classList.add('active');
+        }
+
+        // 스테이지 클리어 트리거
+        function handleStageClear() {
+            gameState = 'CLEAR';
+            if (currentStage === maxStage) {
+                // 7개 맵 모두 완료한 경우 전역 엔딩 표출
+                gameState = 'ENDING';
+                endingScreen.classList.add('active');
+            } else {
+                document.getElementById('clear-msg').innerHTML = `<b>STAGE ${currentStage}</b> 완주 성공!<br>다음 난이도 맵으로 이동할 준비를 하세요.`;
+                clearScreen.classList.add('active');
+            }
+        }
+
+        // 다음 단계 리로딩
+        function nextStage() {
+            if(currentStage < maxStage) {
+                loadStage(currentStage + 1);
+            }
+        }
+
+        // 현재 단계 반복 재시도
+        function restartStage() {
+            loadStage(currentStage);
+        }
+
+        // 완전 초기 리셋 루틴
+        function resetWholeGame() {
+            endingScreen.classList.remove('active');
+            loadStage(1);
+        }
+
+        function closeAllScreens() {
+            startScreen.classList.remove('active');
+            gameoverScreen.classList.remove('active');
+            clearScreen.classList.remove('active');
+            endingScreen.classList.remove('active');
+        }
+
+        // 캔버스 드로잉(렌더링) 처리 함수
+        function render() {
+            // 화면 싹 닦기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 미세 배경 디자인 패턴 (속도 격차를 준 패럴랙스 스크롤링 효과 구현)
+            ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+            for (let i = 0; i < canvas.width + 100; i += 80) {
+                let bgX = (i - (mapProgress * 0.3)) % (canvas.width + 100);
+                if (bgX < 0) bgX += (canvas.width + 100);
+                ctx.fillRect(bgX, 50, 40, 150);
+            }
+
+            // 1. 발판 그리기
+            platforms.forEach(plat => {
+                let screenX = plat.x - mapProgress; // 실제 화면상의 픽셀 렌더링 위치
+                
+                // 화면 밖에 완전히 벗어난 요소들은 드로잉 패스 연산 제외 최적화
+                if (screenX + plat.width < 0 || screenX > canvas.width) return;
+
+                if (plat.type === 'bounce') {
+                    // 슈퍼 점프 패드 발판 스타일링
+                    ctx.fillStyle = '#fcc419';
+                    ctx.fillRect(screenX, plat.y, plat.width, 15);
+                    ctx.fillStyle = '#fab005';
+                    ctx.fillRect(screenX, plat.y + 15, plat.width, canvas.height - plat.y);
+                    
+                    // 패드 내부 화살표 표식 무늬 삽입
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 11px Arial";
+                    ctx.fillText("▲ SUPER ▲", screenX + 2, plat.y + 11);
+                } else {
+                    // 일반 지형 발판 스타일링
+                    let currentThemeColor = stageConfigs[currentStage].color;
+                    ctx.fillStyle = currentThemeColor;
+                    ctx.fillRect(screenX, plat.y, plat.width, 10);
+                    // 하단 채우기 음영 그라데이션 유도
+                    ctx.fillStyle = '#212529';
+                    ctx.fillRect(screenX, plat.y + 10, plat.width, canvas.height - plat.y);
                 }
             });
-        }
 
-        // 지렁이 이동 및 음식 섭취 처리
-        function moveSnake() {
-            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-            snake.unshift(head);
+            // 2. 가시 장애물 그리기
+            obstacles.forEach(obs => {
+                let screenX = obs.x - mapProgress;
+                if (screenX + obs.width < 0 || screenX > canvas.width) return;
 
-            const hasEatenFood = snake[0].x === food.x && snake[0].y === food.y;
-            if (hasEatenFood) {
-                score += 10;
-                scoreEl.textContent = score;
-                createFood();
-            } else {
-                snake.pop();
-            }
-        }
-
-        // 무작위 음식 생성
-        function createFood() {
-            food.x = Math.floor(Math.random() * tileCount) * gridSize;
-            food.y = Math.floor(Math.random() * tileCount) * gridSize;
-
-            // 음식 이 지렁이 몸통 위에 생기지 않도록 재귀 체크
-            snake.forEach(part => {
-                const hasEaten = part.x === food.x && part.y === food.y;
-                if (hasEaten) createFood();
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.moveTo(screenX, obs.y + obs.height);
+                ctx.lineTo(screenX + obs.width / 2, obs.y);
+                ctx.lineTo(screenX + obs.width, obs.y + obs.height);
+                ctx.closePath();
+                ctx.fill();
             });
-        }
 
-        // 음식 그리기
-        function drawFood() {
-            ctx.fillStyle = '#ff4757'; // 빨간색 음식
+            // 3. 주인공 캐릭터 (점핑 네온 구체) 그리기
             ctx.beginPath();
-            let radius = gridSize / 2 - 2;
-            ctx.arc(food.x + gridSize/2, food.y + gridSize/2, radius, 0, Math.PI * 2);
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            
+            let currentThemeColor = stageConfigs[currentStage].color;
+            ctx.fillStyle = currentThemeColor;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = currentThemeColor;
+            ctx.fill();
+            
+            // 캔버스 이펙트 원상복구 차단
+            ctx.shadowBlur = 0;
+
+            // 공 내부 하이라이트 원 효과 추가로 구체감 구현
+            ctx.beginPath();
+            ctx.arc(ball.x - 4, ball.y - 4, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.fill();
         }
 
-        // 충돌 체크 (벽 또는 자기 자신)
-        function hasGameEnded() {
-            for (let i = 4; i < snake.length; i++) {
-                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true;
+        // 키보드 핸들링 리스너 연동
+        window.addEventListener('keydown', function(e) {
+            // 위쪽 방향키(38) 혹은 스페이스바(32) 입력 추적 처리
+            if (e.keyCode === 38 || e.keyCode === 32) {
+                e.preventDefault(); // 스페이스바 브라우저 창 내림 현상 사전 억제 방지
+                triggerJump();
             }
+        });
 
-            const hitLeftWall = snake[0].x < 0;
-            const hitRightWall = snake[0].x >= canvas.width;
-            const hitToptWall = snake[0].x < 0; // 변수명 오타 방지
-            const hitTopWall = snake[0].y < 0;
-            const hitBottomWall = snake[0].y >= canvas.height;
-
-            return hitLeftWall || hitRightWall || hitTopWall || hitBottomWall;
-        }
-
-        // 게임 오버 처리
-        function handleGameOver() {
-            clearInterval(gameInterval);
-            finalScoreEl.textContent = score;
-            gameOverScreen.classList.add('show');
-
-            if (score > highScore) {
-                highScore = score;
-                highScoreEl.textContent = highScore;
-                localStorage.setItem('snakeHighScore', highScore);
-            }
-        }
-
-        // 키보드 방향키 입력 처리
-        function changeDirection(event) {
-            const keyPressed = event.keyCode;
-            
-            // 한 프레임 내 연속 입력 제어
-            if (changingDirection) return;
-
-            const LEFT_KEY = 37;
-            const RIGHT_KEY = 39;
-            const UP_KEY = 38;
-            const DOWN_KEY = 40;
-            const SPACE_KEY = 32;
-
-            // 스페이스바 누르면 재시작 (게임오버 상태일 때만)
-            if (keyPressed === SPACE_KEY && gameOverScreen.classList.contains('show')) {
-                startGame();
-                return;
-            }
-
-            const goingUp = dy === -gridSize;
-            const goingDown = dy === gridSize;
-            const goingRight = dx === gridSize;
-            const goingLeft = dx === -gridSize;
-
-            if (keyPressed === LEFT_KEY && !goingRight) {
-                dx = -gridSize;
-                dy = 0;
-                changingDirection = true;
-            }
-            if (keyPressed === UP_KEY && !goingDown) {
-                dx = 0;
-                dy = -gridSize;
-                changingDirection = true;
-            }
-            if (keyPressed === RIGHT_KEY && !goingLeft) {
-                dx = gridSize;
-                dy = 0;
-                changingDirection = true;
-            }
-            if (keyPressed === DOWN_KEY && !goingUp) {
-                dx = 0;
-                dy = gridSize;
-                changingDirection = true;
-            }
-        }
-
-        // 방향키 화면 스크롤 방지
-        window.addEventListener("keydown", function(e) {
-            if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
-                e.preventDefault();
-            }
-        }, false);
-
-        // 이벤트 리스너 등록
-        document.addEventListener("keydown", changeDirection);
-        retryBtn.addEventListener("click", startGame);
-
-        // 첫 게임 시작
-        startGame();
+        // 모바일이나 마우스 클릭 유저들을 위한 터치 및 클릭 이벤트 지원 추가
+        canvas.addEventListener('mousedown', function(e) {
+            triggerJump();
+        });
     </script>
 </body>
 </html>

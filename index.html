@@ -3,10 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My First Git page Open</title>
+    <title>클래식 지렁이 게임</title>
+    <style>
+        body {
+            background-color: #222;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        #score-board {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #game-container {
+            position: relative;
+            border: 4px solid #444;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            background-color: #111;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        #game-over-screen.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #game-over-screen h2 {
+            color: #ff4757;
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        #game-over-screen p {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            background-color: #2ed573;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #26af5f;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .controls-info {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #888;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello My Page</h1>
-    <h2>Welcome</h2>
+
+    <h1>SNAKE GAME</h1>
+    
+    <div id="score-board">
+        <div>현재 점수: <span id="current-score">0</span></div>
+        <div>최고 점수: <span id="high-score">0</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="game-over-screen">
+            <h2>GAME OVER</h2>
+            <p>최종 점수: <span id="final-score">0</span></p>
+            <button id="retry-btn">다시 시작 (Space)</button>
+        </div>
+    </div>
+
+    <div class="controls-info">
+        방향키(↑, ↓, ←, →)로 조작하세요.
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('current-score');
+        const highScoreEl = document.getElementById('high-score');
+        const finalScoreEl = document.getElementById('final-score');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const retryBtn = document.getElementById('retry-btn');
+
+        // 게임 설정 변수
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+        
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = gridSize; // X축 이동 속도/방향
+        let dy = 0;        // Y축 이동 속도/방향
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameInterval;
+        const gameSpeed = 100; // 게임 속도 (밀리초 단위, 낮을수록 빠름)
+        let changingDirection = false; // 한 프레임에 여러번 방향 전환 방지
+
+        highScoreEl.textContent = highScore;
+
+        // 게임 시작 및 초기화
+        function startGame() {
+            snake = [
+                { x: gridSize * 5, y: gridSize * 5 },
+                { x: gridSize * 4, y: gridSize * 5 },
+                { x: gridSize * 3, y: gridSize * 5 }
+            ];
+            dx = gridSize;
+            dy = 0;
+            score = 0;
+            scoreEl.textContent = score;
+            gameOverScreen.classList.remove('show');
+            createFood();
+            
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, gameSpeed);
+        }
+
+        // 메인 게임 루프
+        function gameLoop() {
+            if (hasGameEnded()) {
+                handleGameOver();
+                return;
+            }
+
+            changingDirection = false;
+            clearCanvas();
+            drawFood();
+            moveSnake();
+            drawSnake();
+        }
+
+        // 배경 그리기
+        function clearCanvas() {
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 미세한 모눈종이 격자선 효과 (선택사항)
+            ctx.strokeStyle = '#1a1a1a';
+            for(let i=0; i<canvas.width; i+=gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+        }
+
+        // 지렁이 그리기
+        function drawSnake() {
+            snake.forEach((part, index) => {
+                // 머리는 조금 더 밝은 녹색, 몸통은 일반 녹색
+                ctx.fillStyle = index === 0 ? '#2ed573' : '#26af5f';
+                ctx.fillRect(part.x, part.y, gridSize - 2, gridSize - 2); // 테두리 효과를 위해 -2
+                
+                // 눈 그리기 (머리일 때만)
+                if(index === 0) {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(part.x + 4, part.y + 4, 3, 3);
+                }
+            });
+        }
+
+        // 지렁이 이동 및 음식 섭취 처리
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+
+            const hasEatenFood = snake[0].x === food.x && snake[0].y === food.y;
+            if (hasEatenFood) {
+                score += 10;
+                scoreEl.textContent = score;
+                createFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        // 무작위 음식 생성
+        function createFood() {
+            food.x = Math.floor(Math.random() * tileCount) * gridSize;
+            food.y = Math.floor(Math.random() * tileCount) * gridSize;
+
+            // 음식 이 지렁이 몸통 위에 생기지 않도록 재귀 체크
+            snake.forEach(part => {
+                const hasEaten = part.x === food.x && part.y === food.y;
+                if (hasEaten) createFood();
+            });
+        }
+
+        // 음식 그리기
+        function drawFood() {
+            ctx.fillStyle = '#ff4757'; // 빨간색 음식
+            ctx.beginPath();
+            let radius = gridSize / 2 - 2;
+            ctx.arc(food.x + gridSize/2, food.y + gridSize/2, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // 충돌 체크 (벽 또는 자기 자신)
+        function hasGameEnded() {
+            for (let i = 4; i < snake.length; i++) {
+                if (snake[i].x === snake[0].x && snake[i].y === snake[0].y) return true;
+            }
+
+            const hitLeftWall = snake[0].x < 0;
+            const hitRightWall = snake[0].x >= canvas.width;
+            const hitToptWall = snake[0].x < 0; // 변수명 오타 방지
+            const hitTopWall = snake[0].y < 0;
+            const hitBottomWall = snake[0].y >= canvas.height;
+
+            return hitLeftWall || hitRightWall || hitTopWall || hitBottomWall;
+        }
+
+        // 게임 오버 처리
+        function handleGameOver() {
+            clearInterval(gameInterval);
+            finalScoreEl.textContent = score;
+            gameOverScreen.classList.add('show');
+
+            if (score > highScore) {
+                highScore = score;
+                highScoreEl.textContent = highScore;
+                localStorage.setItem('snakeHighScore', highScore);
+            }
+        }
+
+        // 키보드 방향키 입력 처리
+        function changeDirection(event) {
+            const keyPressed = event.keyCode;
+            
+            // 한 프레임 내 연속 입력 제어
+            if (changingDirection) return;
+
+            const LEFT_KEY = 37;
+            const RIGHT_KEY = 39;
+            const UP_KEY = 38;
+            const DOWN_KEY = 40;
+            const SPACE_KEY = 32;
+
+            // 스페이스바 누르면 재시작 (게임오버 상태일 때만)
+            if (keyPressed === SPACE_KEY && gameOverScreen.classList.contains('show')) {
+                startGame();
+                return;
+            }
+
+            const goingUp = dy === -gridSize;
+            const goingDown = dy === gridSize;
+            const goingRight = dx === gridSize;
+            const goingLeft = dx === -gridSize;
+
+            if (keyPressed === LEFT_KEY && !goingRight) {
+                dx = -gridSize;
+                dy = 0;
+                changingDirection = true;
+            }
+            if (keyPressed === UP_KEY && !goingDown) {
+                dx = 0;
+                dy = -gridSize;
+                changingDirection = true;
+            }
+            if (keyPressed === RIGHT_KEY && !goingLeft) {
+                dx = gridSize;
+                dy = 0;
+                changingDirection = true;
+            }
+            if (keyPressed === DOWN_KEY && !goingUp) {
+                dx = 0;
+                dy = gridSize;
+                changingDirection = true;
+            }
+        }
+
+        // 방향키 화면 스크롤 방지
+        window.addEventListener("keydown", function(e) {
+            if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+                e.preventDefault();
+            }
+        }, false);
+
+        // 이벤트 리스너 등록
+        document.addEventListener("keydown", changeDirection);
+        retryBtn.addEventListener("click", startGame);
+
+        // 첫 게임 시작
+        startGame();
+    </script>
 </body>
 </html>

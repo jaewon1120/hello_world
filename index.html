@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition (Perfect Fix)</title>
+    <title>Vampire Survivors: Greatsword Master Edition (100% Fixed)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -139,8 +139,7 @@
             cursor: pointer; text-align: center; border: 3px solid #475569;
             display: flex; flex-direction: column; justify-content: space-between;
         }
-        .reward-card.super-rare { border-color: #f59e0b; background: #1c1917; animation: pulse-gold 2s infinite; }
-
+        
         #boss-warning {
             position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
             background: rgba(220, 38, 38, 0.9); color: white; padding: 8px 20px;
@@ -220,28 +219,13 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(type) {
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                if (type === 'hit') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
-                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-                } else if (type === 'shoot') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(selectedHero === 'knight' ? 140 : 350, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.15);
-                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-                } else if (type === 'levelup') {
-                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                }
-            } catch(e) {}
-        }
+        // 글로벌 변수 및 데이터 리스트 선언부 (오류 해결을 위해 최상단 고정 배치)
+        let selectedHero = 'knight';
+        let isPlaying = false;
+        let isPaused = false;
+        let killCount = 0;
+        let elapsedFrames = 0;
 
-        let isPlaying = false, isPaused = false, killCount = 0, elapsedFrames = 0;
         const player = { x: 450, y: 300, radius: 16, speed: 3, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 10, atkDmg: 15, atkCooldown: 40, atkTimer: 0, magnetRadius: 80, regenTimer: 0, regenRate: 0, critChance: 0.05, armor: 0, explosiveShots: false, chainLightning: false, frozenShield: false, orbitBarrier: false, lifesteal: 0, deathSave: false, pierce: 1, projSize: 1 };
         const keys = { w: false, a: false, s: false, d: false };
         const mouse = { x: 450, y: 300, isDown: false };
@@ -249,6 +233,7 @@
         let enemies = [], particles = [], projectiles = [], gems = [], barriers = [];
         let activeBoss = null, bossSpawned = false, bossTimeRemaining = 7200;
 
+        // 보상 데이터 정의
         const NORMAL_REWARDS = [
             { id: 'hp_up', type: 'normal', name: '강인한 육체', desc: '최대 체력 +20% 및 즉시 치유', effect: () => { player.maxHp = Math.round(player.maxHp * 1.2); player.hp = player.maxHp; } },
             { id: 'dmg_up', type: 'normal', name: '예리한 날각', desc: '공격 공격력 +15%', effect: () => { player.atkDmg = Math.round(player.atkDmg * 1.15); } },
@@ -279,6 +264,35 @@
             { id: 'boss5', name: '종말의 사신', time: 280, maxHp: 27000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
 
+        // 오디오 시스템 안정화 함수
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                if (type === 'hit') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'shoot') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(selectedHero === 'knight' ? 140 : 350, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+                } else if (type === 'levelup') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'boss') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+                } else if (type === 'gameover') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.6);
+                }
+            } catch(e) {}
+        }
+
         function selectChar(hero, element) {
             selectedHero = hero;
             document.querySelectorAll('.char-card').forEach(card => card.classList.remove('selected'));
@@ -286,6 +300,9 @@
         }
 
         function startGame() {
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+            playSound('levelup');
+
             isPlaying = true; isPaused = false; elapsedFrames = 0; killCount = 0;
             player.x = 450; player.y = 300; player.level = 1; player.xp = 0; player.nextXp = 10;
             player.armor = 0; player.critChance = 0.05; player.regenRate = 0; player.explosiveShots = false;
@@ -296,10 +313,12 @@
             else if (selectedHero === 'mage') { player.hp = 80; player.maxHp = 80; player.speed = 3.2; player.atkDmg = 35; player.atkCooldown = 35; } 
             else if (selectedHero === 'ranger') { player.hp = 100; player.maxHp = 100; player.speed = 3.6; player.atkDmg = 12; player.atkCooldown = 22; }
 
-            enemies = []; projectiles = []; gems = []; particles = []; activeBoss = null; bossSpawned = false;
+            enemies = []; projectiles = []; gems = []; particles = []; barriers = []; activeBoss = null; bossSpawned = false;
+            
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('boss-warning').style.display = 'none';
+            
             requestAnimationFrame(gameLoop);
         }
 
@@ -307,7 +326,7 @@
             isPlaying = false; playSound('gameover');
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('gameover-title').textContent = reason === 'time' ? "⏰ TIME OVER!" : "💀 DEFEAT";
-            document.getElementById('gameover-stats').innerHTML = `최종 킬 수: ${killCount} 킬`;
+            document.getElementById('gameover-stats').innerHTML = `최종 토벌 스코어: ${killCount} 킬`;
         }
 
         function spawnEnemy() {
@@ -442,9 +461,9 @@
                     hitList: []
                 });
             } else if (selectedHero === 'mage') {
-                projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, radius: 10, damage: player.atkDmg, color: '#60a5fa', pierce: pCount + 3 });
+                projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, radius: 10, damage: player.atkDmg, color: '#60a5fa', pierce: pCount + 3, isGreatsword: false });
             } else if (selectedHero === 'ranger') {
-                [-0.15, 0, 0.15].forEach(o => projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang+o) * 8, vy: Math.sin(ang+o) * 8, radius: 5, damage: player.atkDmg, color: '#4ade80', pierce: pCount }));
+                [-0.15, 0, 0.15].forEach(o => projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang+o) * 8, vy: Math.sin(ang+o) * 8, radius: 5, damage: player.atkDmg, color: '#4ade80', pierce: pCount, isGreatsword: false }));
             }
         }
 
@@ -517,6 +536,11 @@
             particles.forEach(p => {
                 if (p.text !== undefined) { ctx.fillStyle = p.color; ctx.font = p.fontSize + " Arial"; ctx.fillText(p.text, p.x, p.y); }
             });
+        }
+
+        function resetGame() {
+            document.getElementById('gameover-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
         }
     </script>
 </body>

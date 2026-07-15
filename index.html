@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition (Fixed)</title>
+    <title>Vampire Survivors: Greatsword Master Edition (Perfect Fix)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -242,7 +242,7 @@
         }
 
         let isPlaying = false, isPaused = false, killCount = 0, elapsedFrames = 0;
-        const player = { x: 450, y: 300, radius: 16, speed: 3, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 10, atkDmg: 15, atkCooldown: 40, atkTimer: 0, magnetRadius: 80, regenTimer: 0, regenRate: 0, critChance: 0.05, armor: 0, explosiveShots: false, chainLightning: false, frozenShield: false, orbitBarrier: false, lifesteal: 0, deathSave: false, pierce: 1 };
+        const player = { x: 450, y: 300, radius: 16, speed: 3, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 10, atkDmg: 15, atkCooldown: 40, atkTimer: 0, magnetRadius: 80, regenTimer: 0, regenRate: 0, critChance: 0.05, armor: 0, explosiveShots: false, chainLightning: false, frozenShield: false, orbitBarrier: false, lifesteal: 0, deathSave: false, pierce: 1, projSize: 1 };
         const keys = { w: false, a: false, s: false, d: false };
         const mouse = { x: 450, y: 300, isDown: false };
 
@@ -278,12 +278,6 @@
             { id: 'boss4', name: '악마 영주', time: 220, maxHp: 13000, size: 40, color: '#ef4444', power: 32, speed: 1.6 },
             { id: 'boss5', name: '종말의 사신', time: 280, maxHp: 27000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
-
-        window.addEventListener('keydown', e => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = true; });
-        window.addEventListener('keyup', e => { if (e.key.toLowerCase() in keys) keys[e.key.toLowerCase()] = false; });
-        canvas.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; });
-        canvas.addEventListener('mousedown', () => mouse.isDown = true);
-        canvas.addEventListener('mouseup', () => mouse.isDown = false);
 
         function selectChar(hero, element) {
             selectedHero = hero;

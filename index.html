@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition</title>
+    <title>Vampire Survivors: Greatsword Master Edition (Fixed)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -242,7 +242,7 @@
         }
 
         let isPlaying = false, isPaused = false, killCount = 0, elapsedFrames = 0;
-        const player = { x: 450, y: 300, radius: 16, speed: 3, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 10, atkDmg: 15, atkCooldown: 40, atkTimer: 0, magnetRadius: 80, regenTimer: 0, regenRate: 0, critChance: 0.05, armor: 0, explosiveShots: false, chainLightning: false, frozenShield: false, orbitBarrier: false, lifesteal: 0, deathSave: false };
+        const player = { x: 450, y: 300, radius: 16, speed: 3, hp: 100, maxHp: 100, level: 1, xp: 0, nextXp: 10, atkDmg: 15, atkCooldown: 40, atkTimer: 0, magnetRadius: 80, regenTimer: 0, regenRate: 0, critChance: 0.05, armor: 0, explosiveShots: false, chainLightning: false, frozenShield: false, orbitBarrier: false, lifesteal: 0, deathSave: false, pierce: 1 };
         const keys = { w: false, a: false, s: false, d: false };
         const mouse = { x: 450, y: 300, isDown: false };
 
@@ -285,12 +285,18 @@
         canvas.addEventListener('mousedown', () => mouse.isDown = true);
         canvas.addEventListener('mouseup', () => mouse.isDown = false);
 
+        function selectChar(hero, element) {
+            selectedHero = hero;
+            document.querySelectorAll('.char-card').forEach(card => card.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
         function startGame() {
             isPlaying = true; isPaused = false; elapsedFrames = 0; killCount = 0;
             player.x = 450; player.y = 300; player.level = 1; player.xp = 0; player.nextXp = 10;
             player.armor = 0; player.critChance = 0.05; player.regenRate = 0; player.explosiveShots = false;
             player.orbitBarrier = false; player.lifesteal = 0; player.deathSave = false; player.vampiricPact = false;
-            player.projSize = 1;
+            player.projSize = 1; player.pierce = 1;
 
             if (selectedHero === 'knight') { player.hp = 150; player.maxHp = 150; player.speed = 2.8; player.atkDmg = 32; player.atkCooldown = 38; } 
             else if (selectedHero === 'mage') { player.hp = 80; player.maxHp = 80; player.speed = 3.2; player.atkDmg = 35; player.atkCooldown = 35; } 
@@ -298,6 +304,7 @@
 
             enemies = []; projectiles = []; gems = []; particles = []; activeBoss = null; bossSpawned = false;
             document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('boss-warning').style.display = 'none';
             requestAnimationFrame(gameLoop);
         }
@@ -357,15 +364,21 @@
                 if (mouse.isDown || selectedHero !== 'knight') { triggerAttack(); player.atkTimer = 0; }
             }
 
-            // Projectile Physics (Handles the real heavy Greatsword slash transformation)
+            if (player.orbitBarrier) {
+                barriers = [{ angle: (elapsedFrames * 0.05) % (Math.PI * 2), radius: 65, size: 8, color: '#fbbf24' }];
+                const bx = player.x + Math.cos(barriers[0].angle) * barriers[0].radius;
+                const by = player.y + Math.sin(barriers[0].angle) * barriers[0].radius;
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - bx, e.y - by) < e.radius + barriers[0].size) {
+                        e.hp -= player.atkDmg * 0.4; createDamageText(e.x, e.y - 10, Math.round(player.atkDmg * 0.4), false);
+                    }
+                });
+            }
+
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 if (p.isGreatsword) {
-                    p.life--;
-                    // 검이 호를 그리며 각도가 부드럽게 가속 연산 처리됨
-                    p.currentAngle += p.speedTurn;
-                    
-                    // 검날 중심 충돌 가이드박스 동적 동기화
+                    p.life--; p.currentAngle += p.speedTurn;
                     let tipX = player.x + Math.cos(p.currentAngle) * (p.bladeLength * 0.7);
                     let tipY = player.y + Math.sin(p.currentAngle) * (p.bladeLength * 0.7);
 
@@ -374,7 +387,6 @@
                             let isCrit = Math.random() < player.critChance, finalDmg = isCrit ? Math.round(p.damage * 2) : Math.round(p.damage);
                             e.hp -= finalDmg; p.hitList.push(e);
                             createDamageText(e.x, e.y - 15, finalDmg, isCrit);
-                            if (player.lifesteal > 0) player.hp = Math.min(player.maxHp, player.hp + Math.round(finalDmg * player.lifesteal));
                             playSound('hit');
                         }
                     });
@@ -410,7 +422,7 @@
             }
 
             gems.forEach((g, idx) => {
-                if (Math.hypot(player.x - g.x, player.y - g.y) < player.radius + 10) { player.xp += g.value; if (player.xp >= player.nextXp) triggerLevelUp(); gems.splice(idx, 1); }
+                if (Math.hypot(player.x - g.x, player.y - g.y) < player.radius + 15) { player.xp += g.value; if (player.xp >= player.nextXp) triggerLevelUp(); gems.splice(idx, 1); }
             });
 
             particles.forEach((p, idx) => { p.x += p.vx; p.y += p.vy; p.alpha -= p.decay; if (p.alpha <= 0) particles.splice(idx, 1); });
@@ -419,14 +431,16 @@
         function triggerAttack() {
             playSound('shoot');
             const ang = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            let pCount = player.pierce || 1;
+            
             if (selectedHero === 'knight') {
                 let size = player.projSize || 1;
                 projectiles.push({
                     x: player.x, y: player.y,
-                    currentAngle: ang - 1.2, // 좌측 대각선 뒤편부터 대기
-                    speedTurn: 0.14, // 호를 가르는 속도
-                    bladeLength: 75 * size, // 대검 실물 길이 증가
-                    bladeWidth: 7 * size, // 대검폭
+                    currentAngle: ang - 1.2,
+                    speedTurn: 0.14,
+                    bladeLength: 75 * size,
+                    bladeWidth: 7 * size,
                     radius: 40 * size,
                     damage: player.atkDmg,
                     isGreatsword: true,
@@ -434,9 +448,9 @@
                     hitList: []
                 });
             } else if (selectedHero === 'mage') {
-                projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, radius: 10, damage: player.atkDmg, color: '#60a5fa' });
+                projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang) * 6, vy: Math.sin(ang) * 6, radius: 10, damage: player.atkDmg, color: '#60a5fa', pierce: pCount + 3 });
             } else if (selectedHero === 'ranger') {
-                [-0.15, 0, 0.15].forEach(o => projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang+o) * 8, vy: Math.sin(ang+o) * 8, radius: 5, damage: player.atkDmg, color: '#4ade80' }));
+                [-0.15, 0, 0.15].forEach(o => projectiles.push({ x: player.x, y: player.y, vx: Math.cos(ang+o) * 8, vy: Math.sin(ang+o) * 8, radius: 5, damage: player.atkDmg, color: '#4ade80', pierce: pCount }));
             }
         }
 
@@ -468,57 +482,44 @@
                 }
             });
 
-            // Greatsword Advanced Object Rendering Matrix System
             projectiles.forEach(p => {
                 if (p.isGreatsword) {
                     ctx.save();
                     ctx.translate(player.x, player.y);
                     ctx.rotate(p.currentAngle);
 
-                    // 1. 대검 가르기 잔상 궤적 드로잉
                     let trailGrad = ctx.createLinearGradient(0, 0, p.bladeLength, 0);
                     trailGrad.addColorStop(0, 'rgba(59, 130, 246, 0)');
                     trailGrad.addColorStop(1, 'rgba(96, 165, 250, 0.25)');
                     ctx.fillStyle = trailGrad;
-                    ctx.beginPath();
-                    ctx.moveTo(0, 0);
-                    ctx.arc(0, 0, p.bladeLength, -0.3, 0, false);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, p.bladeLength, -0.3, 0, false); ctx.closePath(); ctx.fill();
 
-                    // 2. 물리 대검 모델링 드로잉 (실물 검 구조)
-                    // 코어 손잡이 크로스 가드
-                    ctx.fillStyle = '#78350f'; // 우드코어 힐트
-                    ctx.fillRect(5, -3, 8, 6);
-                    ctx.fillStyle = '#e2e8f0'; // 철제 가드
-                    ctx.fillRect(13, -12, 4, 24);
+                    ctx.fillStyle = '#78350f'; ctx.fillRect(5, -3, 8, 6);
+                    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(13, -12, 4, 24);
 
-                    // 검신 (실제 날카롭고 묵직한 메탈 텍스처 검날 구현)
-                    ctx.fillStyle = '#cbd5e1'; // 주 검신 밝은 면
+                    ctx.fillStyle = '#cbd5e1';
                     ctx.beginPath();
                     ctx.moveTo(17, -p.bladeWidth);
                     ctx.lineTo(17 + p.bladeLength * 0.8, -p.bladeWidth * 0.8);
-                    ctx.lineTo(17 + p.bladeLength, 0); // 칼날 끝점(Apex)
+                    ctx.lineTo(17 + p.bladeLength, 0);
                     ctx.lineTo(17 + p.bladeLength * 0.8, p.bladeWidth * 0.8);
                     ctx.lineTo(17, p.bladeWidth);
-                    ctx.closePath();
-                    ctx.fill();
+                    ctx.closePath(); ctx.fill();
 
-                    // 칼날 중심 혈조선 매트릭스 라인 디테일
-                    ctx.strokeStyle = '#64748b';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(17, 0);
-                    ctx.lineTo(17 + p.bladeLength * 0.85, 0);
-                    ctx.stroke();
-
+                    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
+                    ctx.beginPath(); ctx.moveTo(17, 0); ctx.lineTo(17 + p.bladeLength * 0.85, 0); ctx.stroke();
                     ctx.restore();
                 } else {
                     ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
                 }
             });
 
-            ctx.fillStyle = '#60a5fa'; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = selectedHero === 'knight' ? '#cbd5e1' : (selectedHero === 'mage' ? '#60a5fa' : '#4ade80');
+            ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill();
+            
+            const lookAng = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(player.x + Math.cos(lookAng) * 6, player.y + Math.sin(lookAng) * 6, 3, 0, Math.PI * 2); ctx.fill();
+
             particles.forEach(p => {
                 if (p.text !== undefined) { ctx.fillStyle = p.color; ctx.font = p.fontSize + " Arial"; ctx.fillText(p.text, p.x, p.y); }
             });

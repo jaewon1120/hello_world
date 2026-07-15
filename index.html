@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition (100% Fixed)</title>
+    <title>Vampire Survivors: Greatsword Master Edition (Perfect Operational Fix)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -219,7 +219,7 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 글로벌 변수 및 데이터 리스트 선언부 (오류 해결을 위해 최상단 고정 배치)
+        // 상태 스위치 및 기초 변수 설정
         let selectedHero = 'knight';
         let isPlaying = false;
         let isPaused = false;
@@ -264,7 +264,24 @@
             { id: 'boss5', name: '종말의 사신', time: 280, maxHp: 27000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
 
-        // 오디오 시스템 안정화 함수
+        // 키보드/마우스 입력 리스너 (즉각적인 전역 이벤트 바인딩)
+        window.addEventListener('keydown', e => { 
+            const k = e.key.toLowerCase();
+            if (k in keys) keys[k] = true; 
+        });
+        window.addEventListener('keyup', e => { 
+            const k = e.key.toLowerCase();
+            if (k in keys) keys[k] = false; 
+        });
+        
+        window.addEventListener('mousemove', e => { 
+            const r = canvas.getBoundingClientRect(); 
+            mouse.x = e.clientX - r.left; 
+            mouse.y = e.clientY - r.top; 
+        });
+        window.addEventListener('mousedown', () => { mouse.isDown = true; });
+        window.addEventListener('mouseup', () => { mouse.isDown = false; });
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             try {
@@ -283,20 +300,8 @@
                 } else if (type === 'levelup') {
                     osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
                     gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                } else if (type === 'boss') {
-                    osc.type = 'square'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-                } else if (type === 'gameover') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(120, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.6);
                 }
             } catch(e) {}
-        }
-
-        function selectChar(hero, element) {
-            selectedHero = hero;
-            document.querySelectorAll('.char-card').forEach(card => card.classList.remove('selected'));
-            element.classList.add('selected');
         }
 
         function startGame() {
@@ -364,6 +369,7 @@
 
             if (elapsedFrames % 30 === 0) spawnEnemy();
 
+            // 상하좌우 이동 계산 메커니즘 연동
             let dx = 0, dy = 0;
             if (keys.w) dy -= 1; if (keys.s) dy += 1; if (keys.a) dx -= 1; if (keys.d) dx += 1;
             if (dx!==0 && dy!==0) { dx*=0.7071; dy*=0.7071; }
@@ -374,7 +380,8 @@
 
             player.atkTimer++;
             if (player.atkTimer >= player.atkCooldown) {
-                if (mouse.isDown || selectedHero !== 'knight') { triggerAttack(); player.atkTimer = 0; }
+                // 마우스 클릭 상태에 기반한 연사 트리거 활성화
+                if (mouse.isDown) { triggerAttack(); player.atkTimer = 0; }
             }
 
             if (player.orbitBarrier) {

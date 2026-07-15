@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Pixel Arena</title>
+    <title>Vampire Survivors: Pixel Arena (2 Min Boss Edition)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -306,8 +306,8 @@
 
         <!-- Boss Spawn & Time limit Warning -->
         <div id="boss-warning">
-            ⚠️ 🚨 <span id="boss-warning-text">보스 출현! 30초 내에 처치하지 못하면 즉시 패배합니다!</span> 🚨 ⚠️
-            <div id="boss-timer" style="font-size: 18px; margin-top: 4px;">남은 시간: 30.0s</div>
+            ⚠️ 🚨 <span id="boss-warning-text">보스 출현! 2분 내에 처치하지 못하면 즉시 패배합니다!</span> 🚨 ⚠️
+            <div id="boss-timer" style="font-size: 18px; margin-top: 4px;">남은 시간: 120.0s</div>
         </div>
 
         <canvas id="gameCanvas" width="900" height="600"></canvas>
@@ -315,7 +315,7 @@
         <!-- Start Screen -->
         <div id="start-screen" class="overlay-screen">
             <h1>VAMPIRE SURVIVORS<br><span style="font-size: 24px; color: #60a5fa;">HTML5 ARENA</span></h1>
-            <p class="subtitle">WASD키로 이동하고 마우스를 움직여 조준 및 클릭으로 적들을 무찌르세요!<br>특정 시간대마다 등장하는 강력한 보스들을 30초 제한 시간 내에 쓰러뜨려야 생존할 수 있습니다.</p>
+            <p class="subtitle">WASD키로 이동하고 마우스를 움직여 조준 및 클릭으로 적들을 무찌르세요!<br>특정 시간대마다 등장하는 강력한 보스들을 2분 제한 시간 내에 쓰러뜨려야 생존할 수 있습니다.</p>
             
             <div class="char-select-container">
                 <div class="char-card selected" onclick="selectChar('knight', this)">
@@ -458,8 +458,8 @@
         // Boss variables
         let activeBoss = null;
         let bossSpawned = false;
-        let bossTimerLimit = 30 * 60; // 30 seconds at 60 fps = 1800 frames
-        let bossTimeRemaining = 1800;
+        let bossTimerLimit = 120 * 60; // 2 minutes at 60 fps = 7200 frames
+        let bossTimeRemaining = 7200;
 
         // Rewards Data Lists
         const NORMAL_REWARDS = [
@@ -499,13 +499,13 @@
             { id: 'phoenix_rebirth', type: 'super-rare', name: '🔥 불사조의 심장 (Phoenix)', desc: '사망 시 1회에 한해 최대 체력으로 부활하며 3초 동안 무적 상태가 됩니다.', effect: () => { player.deathSave = true; } }
         ];
 
-        // Boss Definitions
+        // Boss Definitions (보스가 나오는 주기도 넉넉하게 2분 제한시간에 맞춰 분산 배치)
         const BOSS_SCHEDULE = [
             { id: 'boss1', name: '킹 슬라임 (Slime King)', time: 45, maxHp: 1500, size: 36, color: '#10b981', power: 12, speed: 1.2 },
-            { id: 'boss2', name: '고블린 주술사 (Goblin Shaman)', time: 90, maxHp: 3200, size: 30, color: '#eab308', power: 18, speed: 1.5 },
-            { id: 'boss3', name: '자이언트 골렘 (Giant Golem)', time: 135, maxHp: 6500, size: 45, color: '#64748b', power: 25, speed: 1.0 },
-            { id: 'boss4', name: '악마 영주 (Demon Lord)', time: 180, maxHp: 12000, size: 40, color: '#ef4444', power: 32, speed: 1.6 },
-            { id: 'boss5', name: '종말의 사신 (Vampire Reaper)', time: 225, maxHp: 25000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
+            { id: 'boss2', name: '고블린 주술사 (Goblin Shaman)', time: 100, maxHp: 3200, size: 30, color: '#eab308', power: 18, speed: 1.5 },
+            { id: 'boss3', name: '자이언트 골렘 (Giant Golem)', time: 160, maxHp: 6500, size: 45, color: '#64748b', power: 25, speed: 1.0 },
+            { id: 'boss4', name: '악마 영주 (Demon Lord)', time: 220, maxHp: 12000, size: 40, color: '#ef4444', power: 32, speed: 1.6 },
+            { id: 'boss5', name: '종말의 사신 (Vampire Reaper)', time: 280, maxHp: 25000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
 
         // Setup Hero selection
@@ -609,7 +609,7 @@
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('gameover-title').textContent = reason === 'time' ? "⏰ TIME OVER!" : "💀 DEFEAT";
             document.getElementById('gameover-reason').innerHTML = reason === 'time' ? 
-                `보스를 처치해야 생존할 수 있습니다!<br>강한 영웅이 되어 다시 도전하세요.` : 
+                `보스를 2분 내에 처치해야 생존할 수 있습니다!<br>강한 무기 조합으로 대미지를 올려보세요.` : 
                 `마지막 방어선이 뚫렸습니다. 당신의 여정은 여기까지입니다.`;
             document.getElementById('gameover-stats').innerHTML = `최종 레벨: <span style="color:#10b981;">LV.${player.level}</span> | 생존 시간: <span style="color:#f59e0b;">${document.getElementById('game-timer').textContent}</span> | 토벌: <span style="color:#a78bfa;">${killCount} 킬</span>`;
         }
@@ -618,13 +618,9 @@
         function spawnEnemy() {
             if (isPaused || !isPlaying) return;
             
-            // Scaled complexity based on time
             const seconds = Math.floor(elapsedFrames / 60);
-            
-            // Limit mob counts to maintain solid 60FPS
             if (enemies.length > 120) return;
 
-            // Position at borders of screen
             let x, y;
             if (Math.random() < 0.5) {
                 x = Math.random() < 0.5 ? -30 : canvas.width + 30;
@@ -634,7 +630,6 @@
                 y = Math.random() < 0.5 ? -30 : canvas.height + 30;
             }
 
-            // 5 Regular Mobs: Bat, Zombie, Skeleton, Ghost, Werewolf
             let type = 'bat';
             let roll = Math.random();
             let baseHp = 15 + seconds * 0.8;
@@ -645,7 +640,6 @@
             let xpValue = 1;
 
             if (seconds < 30) {
-                // Easy wave
                 if (roll < 0.3) { type = 'zombie'; hp = baseHp * 2.2; speed = 0.6; color = '#4ade80'; radius = 14; xpValue = 2; }
             } else if (seconds < 70) {
                 if (roll < 0.3) { type = 'zombie'; hp = baseHp * 2.2; speed = 0.6; color = '#4ade80'; radius = 14; xpValue = 2; }
@@ -683,7 +677,6 @@
 
             const seconds = Math.floor(elapsedFrames / 60);
 
-            // Update timer
             const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
             const secs = (seconds % 60).toString().padStart(2, '0');
             document.getElementById('game-timer').textContent = `${mins}:${secs}`;
@@ -694,7 +687,7 @@
                 spawnBoss(nextBossConfig);
             }
 
-            // Boss timer constraint logic
+            // Boss 2-minute timer logic
             if (activeBoss) {
                 bossTimeRemaining--;
                 const secLeft = Math.max(0, (bossTimeRemaining / 60).toFixed(1));
@@ -705,13 +698,11 @@
                 }
             }
 
-            // Spawn standard enemies
-            let spawnRate = Math.max(15, 45 - Math.floor(seconds / 6)); // spawns faster as time passes
+            let spawnRate = Math.max(15, 45 - Math.floor(seconds / 6));
             if (elapsedFrames % spawnRate === 0) {
                 spawnEnemy();
             }
 
-            // Player Movement
             let dx = 0; let dy = 0;
             if (keys.w) dy -= 1;
             if (keys.s) dy += 1;
@@ -725,22 +716,19 @@
             player.x += dx * player.speed;
             player.y += dy * player.speed;
 
-            // Border boundaries
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
             player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
-            // Passive Regen or Vampiric Pact Health Drain
             player.regenTimer++;
             if (player.regenTimer >= 60) {
                 player.regenTimer = 0;
                 if (player.vampiricPact) {
-                    player.hp = Math.max(5, player.hp - 2); // vamp drain but don't instantly self-kill
+                    player.hp = Math.max(5, player.hp - 2);
                 } else if (player.regenRate > 0) {
                     player.hp = Math.min(player.maxHp, player.hp + player.regenRate);
                 }
             }
 
-            // Continuous attack trigger (using mouse position, manual or mouse down auto-fire)
             player.atkTimer++;
             if (player.atkTimer >= player.atkCooldown) {
                 if (mouse.isDown || selectedHero === 'ranger' || selectedHero === 'mage') {
@@ -749,7 +737,6 @@
                 }
             }
 
-            // Update Orbit Barrier
             if (player.orbitBarrier) {
                 barriers = [{
                     angle: (elapsedFrames * 0.05) % (Math.PI * 2),
@@ -757,7 +744,6 @@
                     size: 8,
                     color: '#fbbf24'
                 }];
-                // Trigger contact dmg
                 const bx = player.x + Math.cos(barriers[0].angle) * barriers[0].radius;
                 const by = player.y + Math.sin(barriers[0].angle) * barriers[0].radius;
                 enemies.forEach(e => {
@@ -770,51 +756,36 @@
                 });
             }
 
-            // Projectiles update
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 let p = projectiles[i];
                 p.x += p.vx;
                 p.y += p.vy;
 
-                // Border check
                 if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
                     projectiles.splice(i, 1);
                     continue;
                 }
 
-                // Hit detection
                 let hitAny = false;
                 for (let j = enemies.length - 1; j >= 0; j--) {
                     let e = enemies[j];
                     const dist = Math.hypot(p.x - e.x, p.y - e.y);
                     if (dist < p.radius + e.radius) {
-                        // Apply damage
                         let isCrit = Math.random() < player.critChance;
                         let finalDmg = isCrit ? Math.round(p.damage * 2.0) : Math.round(p.damage);
                         
                         e.hp -= finalDmg;
                         createDamageText(e.x, e.y - 15, finalDmg, isCrit);
 
-                        // Chain slow
-                        if (player.timeWarp) {
-                            e.slowFactor = 0.5;
-                        }
-
-                        // Lifesteal
+                        if (player.timeWarp) { e.slowFactor = 0.5; }
                         if (player.lifesteal > 0) {
                             player.hp = Math.min(player.maxHp, player.hp + Math.round(finalDmg * player.lifesteal));
                         }
+                        if (player.explosiveShots && Math.random() < 0.3) { triggerExplosion(e.x, e.y); }
 
-                        // Explosion effect
-                        if (player.explosiveShots && Math.random() < 0.3) {
-                            triggerExplosion(e.x, e.y);
-                        }
-
-                        // Hit effects
                         createSplashParticles(p.x, p.y, p.color, 4);
                         playSound('hit');
 
-                        p.revealPierced = true;
                         p.pierce--;
                         if (p.pierce <= 0) {
                             projectiles.splice(i, 1);
@@ -825,36 +796,27 @@
                 }
             }
 
-            // Update Enemies & handle player collision
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let e = enemies[i];
 
-                // Dead enemy
                 if (e.hp <= 0) {
                     killCount++;
                     document.getElementById('kills').textContent = `KILLS: ${killCount}`;
                     
-                    // Spawn Gems
                     gems.push({
                         x: e.x, y: e.y,
                         value: e.xpValue,
                         color: e.xpValue > 4 ? '#f59e0b' : (e.xpValue > 2 ? '#3b82f6' : '#10b981')
                     });
 
-                    // If Boss died
-                    if (e === activeBoss) {
-                        rewardBossKill();
-                    }
-
+                    if (e === activeBoss) { rewardBossKill(); }
                     enemies.splice(i, 1);
                     continue;
                 }
 
-                // AI Pathing towards player
                 const ang = Math.atan2(player.y - e.y, player.x - e.x);
                 let currentSpeed = e.speed * e.slowFactor;
                 
-                // Werewolf charge
                 if (e.type === 'werewolf' && Math.hypot(player.y - e.y, player.x - e.x) < 180) {
                     currentSpeed *= 1.6;
                 }
@@ -862,7 +824,6 @@
                 e.x += Math.cos(ang) * currentSpeed;
                 e.y += Math.sin(ang) * currentSpeed;
 
-                // Enemy shooting (for Skeleton / Ranged)
                 if (e.type === 'skeleton') {
                     e.lastShotTimer++;
                     if (e.lastShotTimer > 180) {
@@ -871,7 +832,6 @@
                     }
                 }
 
-                // Damage player on contact
                 const distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
                 if (distToPlayer < player.radius + e.radius) {
                     if (elapsedFrames % 30 === 0) {
@@ -882,7 +842,7 @@
                         
                         if (player.hp <= 0) {
                             if (player.deathSave) {
-                                player.deathSave = false; // consume death save
+                                player.deathSave = false;
                                 player.hp = player.maxHp;
                                 triggerExplosion(player.x, player.y, 100);
                                 createDamageText(player.x, player.y - 30, 'PHOENIX REBORN!', true, '#fbbf24');
@@ -894,7 +854,6 @@
                 }
             }
 
-            // Update Gems & Magnet absorption
             for (let i = gems.length - 1; i >= 0; i--) {
                 let g = gems[i];
                 const dist = Math.hypot(player.x - g.x, player.y - g.y);
@@ -904,40 +863,32 @@
                     g.y += Math.sin(ang) * 5.5;
                 }
                 if (dist < player.radius + 6) {
-                    // Level Up logic
                     let bonus = player.xpBonus || 1;
                     player.xp += g.value * bonus;
-                    if (player.xp >= player.nextXp) {
-                        triggerLevelUp();
-                    }
+                    if (player.xp >= player.nextXp) { triggerLevelUp(); }
                     gems.splice(i, 1);
                 }
             }
 
-            // Update Particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
                 p.y += p.vy;
                 p.alpha -= p.decay;
-                if (p.alpha <= 0) {
-                    particles.splice(i, 1);
-                }
+                if (p.alpha <= 0) { particles.splice(i, 1); }
             }
 
-            // Periodic chain lightning triggers if unlocked
             if (player.chainLightning && elapsedFrames % 150 === 0 && enemies.length > 0) {
                 triggerChainLightning();
             }
 
-            // Update text / HP bar display
             document.getElementById('player-hp-text').textContent = `HP: ${player.hp}/${player.maxHp}`;
             document.getElementById('player-level').textContent = `LV: ${player.level}`;
             const xpPct = Math.min(100, (player.xp / player.nextXp) * 100);
             document.getElementById('xp-bar').style.width = `${xpPct}%`;
         }
 
-        // Spawn Boss Implementation
+        // Spawn Boss (2분 제한 시간 할당)
         function spawnBoss(config) {
             playSound('boss');
             bossSpawned = true;
@@ -957,24 +908,19 @@
             };
             enemies.push(activeBoss);
 
-            // Display Warning
-            bossTimeRemaining = 1800; // 30 seconds
+            bossTimeRemaining = 120 * 60; // 2분 = 120초
             document.getElementById('boss-warning-text').innerHTML = `보스 출현: <strong>${config.name}</strong>!<br>제한 시간 내에 무찌르세요!`;
             document.getElementById('boss-warning').style.display = 'block';
         }
 
-        // Reward Boss Kill
         function rewardBossKill() {
             playSound('levelup');
             activeBoss = null;
             bossSpawned = false;
             document.getElementById('boss-warning').style.display = 'none';
-
-            // Instant Level Up and trigger premium rewards
             triggerLevelUp(true); 
         }
 
-        // Shoot Projectile from enemy
         function shootEnemyProj(x, y, angle, color) {
             projectiles.push({
                 x, y,
@@ -983,11 +929,11 @@
                 radius: 5,
                 damage: 8,
                 color,
+                tierce: 1,
                 pierce: 1
             });
         }
 
-        // Character attacks logic based on weapon types
         function triggerAttack() {
             playSound('shoot');
             const targetAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
@@ -995,7 +941,6 @@
             let finalDmg = player.atkDmg;
 
             if (selectedHero === 'knight') {
-                // Front Swing Arc
                 projectiles.push({
                     x: player.x, y: player.y,
                     vx: Math.cos(targetAngle) * 5 * (player.projSpeed || 1),
@@ -1007,7 +952,6 @@
                     isSwing: true
                 });
             } else if (selectedHero === 'mage') {
-                // Piercing Magic Ball
                 projectiles.push({
                     x: player.x, y: player.y,
                     vx: Math.cos(targetAngle) * 6 * (player.projSpeed || 1),
@@ -1018,7 +962,6 @@
                     pierce: pCount + 3
                 });
             } else if (selectedHero === 'ranger') {
-                // 3-way spread arrow shot
                 const angles = [targetAngle - 0.15, targetAngle, targetAngle + 0.15];
                 angles.forEach(ang => {
                     projectiles.push({
@@ -1034,7 +977,6 @@
             }
         }
 
-        // Trigger chain lightning effects
         function triggerChainLightning() {
             let limit = 3;
             let hits = 0;
@@ -1043,23 +985,16 @@
             ctx.beginPath();
             ctx.moveTo(player.x, player.y);
 
-            let lastX = player.x;
-            let lastY = player.y;
-
             for (let e of enemies) {
                 if (hits >= limit) break;
                 e.hp -= Math.round(player.atkDmg * 0.7);
                 createDamageText(e.x, e.y, Math.round(player.atkDmg * 0.7), false, '#60a5fa');
-                
-                // Draw lightning trace
                 ctx.lineTo(e.x, e.y);
-                lastX = e.x; lastY = e.y;
                 hits++;
             }
             ctx.stroke();
         }
 
-        // Explosion trigger logic
         function triggerExplosion(ex, ey, rad = 60) {
             let radius = rad * (player.aoeMult || 1);
             enemies.forEach(e => {
@@ -1070,12 +1005,9 @@
                     createDamageText(e.x, e.y, dmg, true, '#f97316');
                 }
             });
-
-            // Particles
             createSplashParticles(ex, ey, '#f97316', 15, 4);
         }
 
-        // LEVEL UP REWARDS SCREEN
         function triggerLevelUp(isPremium = false) {
             playSound('levelup');
             isPaused = true;
@@ -1083,7 +1015,6 @@
             player.xp -= player.nextXp;
             player.nextXp = Math.round(player.nextXp * 1.4);
 
-            // Generate Reward Choices (Select 3 random upgrades with distinct weights for rare/super-rare)
             const chosenRewards = [];
             const normalList = [...NORMAL_REWARDS];
             const rareList = [...RARE_REWARDS];
@@ -1094,7 +1025,6 @@
                 let chosen = null;
 
                 if (isPremium) {
-                    // Guarantee rare / super-rare
                     if (roll < 0.4 && superList.length > 0) {
                         const idx = Math.floor(Math.random() * superList.length);
                         chosen = superList.splice(idx, 1)[0];
@@ -1106,7 +1036,6 @@
                         chosen = normalList.splice(idx, 1)[0];
                     }
                 } else {
-                    // Regular balance
                     if (roll < 0.05 && superList.length > 0) {
                         const idx = Math.floor(Math.random() * superList.length);
                         chosen = superList.splice(idx, 1)[0];
@@ -1121,7 +1050,6 @@
                 if (chosen) chosenRewards.push(chosen);
             }
 
-            // Populate overlay cards
             const rewardListDiv = document.getElementById('reward-list');
             rewardListDiv.innerHTML = '';
 
@@ -1148,7 +1076,6 @@
             isPaused = false;
         }
 
-        // Splash Particles utility
         function createSplashParticles(x, y, color, count = 5, speed = 2) {
             for (let i = 0; i < count; i++) {
                 const ang = Math.random() * Math.PI * 2;
@@ -1165,7 +1092,6 @@
             }
         }
 
-        // Damage Text Visual Popup
         function createDamageText(x, y, val, isCrit, color = '#f8fafc') {
             particles.push({
                 x, y,
@@ -1179,13 +1105,10 @@
             });
         }
 
-        // Visual Render functions
         function renderGame() {
-            // Clear Frame
             ctx.fillStyle = '#141b17';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Ground Details / Grid Style Patterns
             ctx.strokeStyle = '#18241e';
             ctx.lineWidth = 1;
             for (let i = 0; i < canvas.width; i += 50) {
@@ -1195,7 +1118,6 @@
                 ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
             }
 
-            // Draw Gems
             gems.forEach(g => {
                 ctx.shadowBlur = 8;
                 ctx.shadowColor = g.color;
@@ -1206,20 +1128,17 @@
                 ctx.shadowBlur = 0;
             });
 
-            // Draw Enemies
             enemies.forEach(e => {
                 ctx.fillStyle = e.color;
                 ctx.beginPath();
                 ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Distinct styling for bosses
                 if (e.type === 'boss') {
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 3;
                     ctx.stroke();
 
-                    // HP indicator above boss head
                     const hpPercent = e.hp / e.maxHp;
                     ctx.fillStyle = 'rgba(0,0,0,0.5)';
                     ctx.fillRect(e.x - 30, e.y - e.radius - 14, 60, 6);
@@ -1228,7 +1147,6 @@
                 }
             });
 
-            // Draw Projectiles
             projectiles.forEach(p => {
                 ctx.fillStyle = p.color;
                 ctx.beginPath();
@@ -1236,7 +1154,6 @@
                 ctx.fill();
             });
 
-            // Draw Orbit Barriers
             barriers.forEach(b => {
                 const bx = player.x + Math.cos(b.angle) * b.radius;
                 const by = player.y + Math.sin(b.angle) * b.radius;
@@ -1249,7 +1166,6 @@
                 ctx.shadowBlur = 0;
             });
 
-            // Draw Player
             ctx.shadowBlur = 12;
             ctx.shadowColor = selectedHero === 'knight' ? '#cbd5e1' : (selectedHero === 'mage' ? '#60a5fa' : '#4ade80');
             ctx.fillStyle = selectedHero === 'knight' ? '#cbd5e1' : (selectedHero === 'mage' ? '#60a5fa' : '#4ade80');
@@ -1258,7 +1174,6 @@
             ctx.fill();
             ctx.shadowBlur = 0;
 
-            // Draw Visual Text & Splash Effects
             particles.forEach(p => {
                 if (p.text !== undefined) {
                     ctx.fillStyle = p.color;

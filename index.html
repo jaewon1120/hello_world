@@ -2,96 +2,480 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Survival Arena Complete</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hops - Only Jump Game</title>
     <style>
-        body { margin: 0; background: #111; color: #fff; overflow: hidden; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        h1 {
+            margin: 5px 0;
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        #instruction {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+            border: 4px solid #333;
+            border-radius: 8px;
+        }
+
+        canvas {
+            background-color: #111;
+            display: block;
+            border-radius: 4px;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            display: flex;
+            gap: 20px;
+        }
+
+        .hud-item {
+            background: rgba(0,0,0,0.6);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        #level-clear-screen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 450px;
+            background: rgba(0, 0, 0, 0.85);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .btn {
+            background-color: #00ffcc;
+            color: #111;
+            border: none;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #00ccaa;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
-    <div id="ui">HP: <span id="hp">3</span> | Lv: <span id="lv">1</span></div>
-    <canvas id="game"></canvas>
 
-<script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    <h1>HOPS</h1>
+    <div id="instruction">조작: [스페이스바] 또는 [마우스 클릭]으로 점프 (걸어서 움직일 수 없습니다!)</div>
 
-// 게임 설정
-let player = { x: canvas.width/2, y: canvas.height/2, hp: 3, speed: 5 };
-let enemies = [], bullets = [], particles = [];
-let keys = {};
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+        <div id="ui-overlay">
+            <div class="hud-item">STAGE: <span id="level-display">1</span>/3</div>
+            <div class="hud-item">DEATHS: <span id="death-display">0</span></div>
+        </div>
+        <div id="level-clear-screen" id="clearScreen">
+            <h2 id="clear-title" style="color: #00ffcc; font-size: 32px; margin: 10px;">STAGE CLEAR!</h2>
+            <p id="clear-sub" style="color: #ccc;">완벽한 슬라이딩이었습니다.</p>
+            <button class="btn" id="nextBtn" onclick="nextLevel()">다음 스테이지</button>
+        </div>
+    </div>
 
-// 3종 몬스터 정의
-const enemyTypes = {
-    normal: { speed: 2, color: 'red', hp: 1 },
-    ranged: { speed: 1.5, color: 'orange', hp: 1 },
-    fast: { speed: 4, color: 'pink', hp: 1 }
-};
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const levelDisplay = document.getElementById('level-display');
+        const deathDisplay = document.getElementById('death-display');
+        const clearScreen = document.getElementById('level-clear-screen');
+        const clearTitle = document.getElementById('clear-title');
+        const clearSub = document.getElementById('clear-sub');
+        const nextBtn = document.getElementById('nextBtn');
 
-// 몬스터 생성
-function spawnEnemy() {
-    let type = Object.keys(enemyTypes)[Math.floor(Math.random()*3)];
-    enemies.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, ...enemyTypes[type], type });
-}
+        // 게임 물리 상수
+        const GRAVITY = 0.45;
+        const FRICTION = 0.96; // 슬라이딩 미끄러짐 마찰력 (1에 가까울수록 아주 잘 미끄러짐)
+        const JUMP_FORCE_Y = -8.5; // 위쪽 점프 힘
+        const JUMP_FORCE_X = 5.0;  // 앞쪽 전진 힘
+        const WALL_JUMP_X = 6.0;   // 벽 점프시 반사 힘
 
-// 게임 루프
-function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 게임 상태
+        let currentLevelIndex = 0;
+        let deaths = 0;
+        let gameActive = true;
 
-    // 1. 플레이어 이동 (WASD)
-    if (keys['w']) player.y -= player.speed;
-    if (keys['s']) player.y += player.speed;
-    if (keys['a']) player.x -= player.speed;
-    if (keys['d']) player.x += player.speed;
-    ctx.fillStyle = 'blue'; ctx.fillRect(player.x-15, player.y-15, 30, 30);
+        // 플레이어 객체
+        const player = {
+            x: 50,
+            y: 300,
+            width: 20,
+            height: 20,
+            vx: 0,
+            vy: 0,
+            isGrounded: false,
+            facingRight: true,
+            trail: [] // 미끄러질 때 이펙트
+        };
 
-    // 2. 총알 처리
-    bullets.forEach((b, i) => {
-        b.x += b.vx; b.y += b.vy;
-        ctx.fillStyle = 'yellow'; ctx.fillRect(b.x, b.y, 6, 6);
-        
-        // 몬스터 충돌 체크
-        enemies.forEach((e, ei) => {
-            if(Math.hypot(b.x - e.x, b.y - e.y) < 20) {
-                enemies.splice(ei, 1);
-                bullets.splice(i, 1);
-                // 타격 이펙트
-                for(let p=0; p<10; p++) particles.push({ x: e.x, y: e.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, alpha: 1 });
+        // 레벨 디자인 (1=벽/바닥, 2=가시(데스), 3=탈출구, 4=일방통행 벽 등)
+        // 맵 데이터 단순화를 위해 사각형 오브젝트 배열로 구성
+        const levels = [
+            // 레벨 1: 기초 훈련 (슬라이딩과 낙사 점프 익히기)
+            {
+                playerStart: { x: 60, y: 300 },
+                goal: { x: 740, y: 310, w: 30, h: 40 },
+                platforms: [
+                    { x: 0, y: 400, w: 250, h: 50 }, // 시작지점
+                    { x: 350, y: 350, w: 150, h: 100 }, // 중간 디딤돌
+                    { x: 600, y: 400, w: 200, h: 50 }  // 끝지점
+                ],
+                hazards: [
+                    { x: 0, y: 440, w: 800, h: 10 } // 바닥 전체 낙사존
+                ]
+            },
+            // 레벨 2: 천장 트랩 및 연속 점프
+            {
+                playerStart: { x: 50, y: 320 },
+                goal: { x: 730, y: 130, w: 30, h: 40 },
+                platforms: [
+                    { x: 0, y: 380, w: 180, h: 70 }, // 시작지점
+                    { x: 280, y: 320, w: 100, h: 20 }, // 징검다리 1
+                    { x: 450, y: 260, w: 100, h: 20 }, // 징검다리 2
+                    { x: 650, y: 200, w: 150, h: 250 }, // 최종 발판
+                    { x: 250, y: 0, w: 400, h: 100 }   // 천장 장애물 (점프 높이 제한)
+                ],
+                hazards: [
+                    { x: 0, y: 440, w: 800, h: 10 },
+                    { x: 300, y: 340, w: 60, h: 10 } // 발판 위 함정 가시
+                ]
+            },
+            // 레벨 3: 홉스의 진수, 벽 점프 기술 요구!
+            {
+                playerStart: { x: 50, y: 380 },
+                goal: { x: 720, y: 80, w: 30, h: 40 },
+                platforms: [
+                    { x: 0, y: 420, w: 150, h: 30 }, // 시작
+                    { x: 250, y: 320, w: 40, h: 130 }, // 벽 1
+                    { x: 380, y: 220, w: 40, h: 230 }, // 벽 2
+                    { x: 520, y: 140, w: 40, h: 310 }, // 벽 3
+                    { x: 680, y: 150, w: 120, h: 300 }  // 골인 지대
+                ],
+                hazards: [
+                    { x: 0, y: 440, w: 800, h: 10 },
+                    // 가시 벽면 배치
+                    { x: 250, y: 430, w: 40, h: 20 },
+                    { x: 380, y: 430, w: 40, h: 20 }
+                ]
+            }
+        ];
+
+        let cur = levels[currentLevelIndex];
+
+        // 초기화 함수
+        function initLevel() {
+            cur = levels[currentLevelIndex];
+            player.x = cur.playerStart.x;
+            player.y = cur.playerStart.y;
+            player.vx = 0;
+            player.vy = 0;
+            player.isGrounded = false;
+            player.trail = [];
+            levelDisplay.textContent = currentLevelIndex + 1;
+            clearScreen.style.display = 'none';
+            gameActive = true;
+        }
+
+        // 입력 감지 (스페이스바 및 마우스 클릭 지원)
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                triggerJump();
             }
         });
-    });
 
-    // 3. 몬스터 로직
-    if(Math.random() < 0.03) spawnEnemy();
-    enemies.forEach(e => {
-        let angle = Math.atan2(player.y - e.y, player.x - e.x);
-        e.x += Math.cos(angle) * e.speed;
-        e.y += Math.sin(angle) * e.speed;
-        ctx.fillStyle = e.color; ctx.fillRect(e.x-15, e.y-15, 30, 30);
-    });
+        canvas.addEventListener('mousedown', (e) => {
+            triggerJump();
+        });
 
-    // 4. 이펙트 관리
-    particles.forEach((p, i) => {
-        p.x += p.vx; p.y += p.vy; p.alpha -= 0.05;
-        ctx.fillStyle = `rgba(255, 255, 0, ${p.alpha})`;
-        ctx.fillRect(p.x, p.y, 4, 4);
-        if(p.alpha <= 0) particles.splice(i, 1);
-    });
+        // 점프 메커니즘
+        function triggerJump() {
+            if (!gameActive) return;
 
-    requestAnimationFrame(loop);
-}
+            // 1. 일반 바닥 점프
+            if (player.isGrounded) {
+                player.vy = JUMP_FORCE_Y;
+                // 미끄러지는 진행 방향 그대로 관성을 받아 앞쪽으로 힘을 싣습니다.
+                player.vx = player.facingRight ? JUMP_FORCE_X : -JUMP_FORCE_X;
+                player.isGrounded = false;
+            } 
+            // 2. 공중에서 좌우 벽에 닿아있을 때 (벽 점프)
+            else {
+                let onLeftWall = false;
+                let onRightWall = false;
 
-// 입력 처리
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-window.addEventListener('mousedown', e => {
-    let angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
-    bullets.push({ x: player.x, y: player.y, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10 });
-});
+                // 아주 미세하게 좌우 벽과 충돌 확인
+                cur.platforms.forEach(plat => {
+                    // 왼쪽 벽 체크
+                    if (player.x + player.width >= plat.x - 2 && player.x + player.width <= plat.x + 5 &&
+                        player.y + player.height > plat.y && player.y < plat.y + plat.h) {
+                        onRightWall = true;
+                    }
+                    // 오른쪽 벽 체크
+                    if (player.x <= plat.x + plat.w + 2 && player.x >= plat.x + plat.w - 5 &&
+                        player.y + player.height > plat.y && player.y < plat.y + plat.h) {
+                        onLeftWall = true;
+                    }
+                });
 
-loop();
-</script>
+                if (onLeftWall) {
+                    player.vy = JUMP_FORCE_Y * 0.9;
+                    player.vx = WALL_JUMP_X; // 오른쪽으로 튕겨나감
+                    player.facingRight = true;
+                } else if (onRightWall) {
+                    player.vy = JUMP_FORCE_Y * 0.9;
+                    player.vx = -WALL_JUMP_X; // 왼쪽으로 튕겨나감
+                    player.facingRight = false;
+                }
+            }
+        }
+
+        // 충돌 판정 함수 (AABB)
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.w &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.h &&
+                   rect1.y + player.height > rect2.y;
+        }
+
+        // 플레이어 사망 처리
+        function die() {
+            deaths++;
+            deathDisplay.textContent = deaths;
+            // 간단한 사망 이펙트나 소리 없이도 홉스 특유의 허탈한 즉시 리스폰 구현
+            initLevel();
+        }
+
+        // 스테이지 클리어
+        function showClearScreen() {
+            gameActive = false;
+            clearScreen.style.display = 'flex';
+            if (currentLevelIndex === levels.length - 1) {
+                clearTitle.textContent = "🏆 ALL STAGES CLEAR! 🏆";
+                clearSub.textContent = `총 데스 수: ${deaths}번 만에 홉스를 정복하셨습니다!`;
+                nextBtn.textContent = "처음부터 다시하기";
+            } else {
+                clearTitle.textContent = "STAGE CLEAR!";
+                clearSub.textContent = "미끄러짐 제어가 훌륭하군요.";
+                nextBtn.textContent = "다음 스테이지";
+            }
+        }
+
+        function nextLevel() {
+            if (currentLevelIndex === levels.length - 1) {
+                currentLevelIndex = 0;
+                deaths = 0;
+                deathDisplay.textContent = 0;
+            } else {
+                currentLevelIndex++;
+            }
+            initLevel();
+        }
+
+        // 메인 업데이트 루프
+        function update() {
+            if (!gameActive) return;
+
+            // 중력 적용
+            player.vy += GRAVITY;
+
+            // 속도 감쇠 및 물리 적용
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // 좌우 방향키가 없으므로 바닥에 닿으면 마찰력에 의해 서서히 멈춤 (슬라이딩 효과)
+            if (player.isGrounded) {
+                player.vx *= FRICTION;
+                if (Math.abs(player.vx) < 0.1) player.vx = 0;
+            }
+
+            // 플레이어 이동 방향 기록
+            if (player.vx > 0.1) player.facingRight = true;
+            if (player.vx < -0.1) player.facingRight = false;
+
+            // 잔상 효과 수집
+            if (Math.abs(player.vx) > 1) {
+                player.trail.push({ x: player.x, y: player.y, alpha: 0.5 });
+                if (player.trail.length > 8) player.trail.shift();
+            } else {
+                if (player.trail.length > 0) player.trail.shift();
+            }
+
+            // 맵 경계선 처리
+            if (player.x < 0) { player.x = 0; player.vx = 0; }
+            if (player.x + player.width > canvas.width) { player.x = canvas.width - player.width; player.vx = 0; }
+
+            // 충돌 체크 (플랫폼)
+            player.isGrounded = false;
+            cur.platforms.forEach(plat => {
+                // 상하좌우 충돌 처리를 정밀화하여 미끄러지고 박는 물리 구현
+                let playerRect = { x: player.x, y: player.y, width: player.width, height: player.height };
+                let platRect = { x: plat.x, y: plat.y, w: plat.w, h: plat.h };
+
+                if (checkCollision(playerRect, platRect)) {
+                    // 이전 프레임 위치 계산을 통한 충돌 방향 판단
+                    let prevY = player.y - player.vy;
+                    let prevX = player.x - player.vx;
+
+                    // 위에서 착지한 경우
+                    if (prevY + player.height <= plat.y) {
+                        player.y = plat.y - player.height;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                    } 
+                    // 밑에서 위로 부딪힌 경우 (대가리가 깨진 상황)
+                    else if (prevY >= plat.y + plat.h) {
+                        player.y = plat.y + plat.h;
+                        player.vy = 0; // 즉시 추락
+                    } 
+                    // 옆에서 벽을 박은 경우
+                    else {
+                        if (prevX + player.width <= plat.x) {
+                            player.x = plat.x - player.width;
+                            player.vx = 0;
+                        } else if (prevX >= plat.x + plat.w) {
+                            player.x = plat.x + plat.w;
+                            player.vx = 0;
+                        }
+                    }
+                }
+            });
+
+            // 위험 요소(가시, 낙사) 충돌 처리
+            cur.hazards.forEach(haz => {
+                if (checkCollision(player, { x: haz.x, y: haz.y, w: haz.w, h: haz.h })) {
+                    die();
+                }
+            });
+
+            // 목적지 도달 체크
+            if (checkCollision(player, { x: cur.goal.x, y: cur.goal.y, w: cur.goal.w, h: cur.goal.h })) {
+                showClearScreen();
+            }
+        }
+
+        // 메인 그리기 루프
+        function draw() {
+            // 배경 지우기
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 가이드 그리드라인 그리며 테크니컬한 감성 살리기
+            ctx.strokeStyle = '#1e1e1e';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 40) {
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // 플랫폼(바닥/벽) 그리기
+            ctx.fillStyle = '#444c56';
+            cur.platforms.forEach(plat => {
+                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                // 모서리 하이라이트
+                ctx.strokeStyle = '#768390';
+                ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+            });
+
+            // 가시(위험요소) 그리기
+            ctx.fillStyle = '#ff3860';
+            cur.hazards.forEach(haz => {
+                // 네모 대신 지그재그 가시 모양으로 드로잉
+                let spikeWidth = 10;
+                let numSpikes = Math.ceil(haz.w / spikeWidth);
+                ctx.beginPath();
+                for (let i = 0; i < numSpikes; i++) {
+                    let startX = haz.x + (i * spikeWidth);
+                    ctx.moveTo(startX, haz.y + haz.h);
+                    ctx.lineTo(startX + (spikeWidth / 2), haz.y);
+                    ctx.lineTo(startX + spikeWidth, haz.y + haz.h);
+                }
+                ctx.closePath();
+                ctx.fill();
+            });
+
+            // 골인 지점 (Portal) 그리기
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00ffcc';
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillRect(cur.goal.x, cur.goal.y, cur.goal.w, cur.goal.h);
+            ctx.shadowBlur = 0; // 그림자 초기화
+
+            // 플레이어 잔상 그리기
+            player.trail.forEach(t => {
+                ctx.fillStyle = `rgba(0, 255, 204, ${t.alpha})`;
+                ctx.fillRect(t.x, t.y, player.width, player.height);
+                t.alpha -= 0.05;
+            });
+
+            // 플레이어 캐릭터 그리기
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ffffff';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.shadowBlur = 0;
+
+            // 귀여운 눈동자 (진행 방향에 맞춰 움직임)
+            ctx.fillStyle = '#111';
+            let eyeOffset = player.facingRight ? 12 : 3;
+            ctx.fillRect(player.x + eyeOffset, player.y + 4, 4, 6);
+        }
+
+        // 메인 게임 루프 실행
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // 최초 실행
+        initLevel();
+        loop();
+    </script>
 </body>
 </html>

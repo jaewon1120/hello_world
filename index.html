@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition (Perfect Operational Fix)</title>
+    <title>Vampire Survivors: Greatsword Master Edition (Certified Fix)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -213,13 +213,13 @@
         </div>
     </div>
 
-    <div id="controls-hint">조작: [W, A, S, D] 이동 | [마우스 조준] 및 [마우스 왼쪽 클릭] 공격 활성화</div>
+    <div id="controls-hint">조작: [W, A, S, D] 이동 | [마우스 조준] 및 [마우스 왼쪽 클릭 유지] 공격 연사</div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 상태 스위치 및 기초 변수 설정
+        // 게임 상태 스위칭 변수들 고정
         let selectedHero = 'knight';
         let isPlaying = false;
         let isPaused = false;
@@ -233,7 +233,7 @@
         let enemies = [], particles = [], projectiles = [], gems = [], barriers = [];
         let activeBoss = null, bossSpawned = false, bossTimeRemaining = 7200;
 
-        // 보상 데이터 정의
+        // 보상 아이템 목록 정의
         const NORMAL_REWARDS = [
             { id: 'hp_up', type: 'normal', name: '강인한 육체', desc: '최대 체력 +20% 및 즉시 치유', effect: () => { player.maxHp = Math.round(player.maxHp * 1.2); player.hp = player.maxHp; } },
             { id: 'dmg_up', type: 'normal', name: '예리한 날각', desc: '공격 공격력 +15%', effect: () => { player.atkDmg = Math.round(player.atkDmg * 1.15); } },
@@ -264,7 +264,7 @@
             { id: 'boss5', name: '종말의 사신', time: 280, maxHp: 27000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
 
-        // 키보드/마우스 입력 리스너 (즉각적인 전역 이벤트 바인딩)
+        // 이벤트 리스너 전역에 바인딩
         window.addEventListener('keydown', e => { 
             const k = e.key.toLowerCase();
             if (k in keys) keys[k] = true; 
@@ -274,14 +274,15 @@
             if (k in keys) keys[k] = false; 
         });
         
-        window.addEventListener('mousemove', e => { 
+        canvas.addEventListener('mousemove', e => { 
             const r = canvas.getBoundingClientRect(); 
             mouse.x = e.clientX - r.left; 
             mouse.y = e.clientY - r.top; 
         });
-        window.addEventListener('mousedown', () => { mouse.isDown = true; });
-        window.addEventListener('mouseup', () => { mouse.isDown = false; });
+        canvas.addEventListener('mousedown', () => { mouse.isDown = true; });
+        canvas.addEventListener('mouseup', () => { mouse.isDown = false; });
 
+        // 오디오 제어 코드
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             try {
@@ -292,16 +293,22 @@
                 if (type === 'hit') {
                     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, audioCtx.currentTime);
                     osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.1);
-                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
                 } else if (type === 'shoot') {
                     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(selectedHero === 'knight' ? 140 : 350, audioCtx.currentTime);
                     osc.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.15);
-                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.15);
                 } else if (type === 'levelup') {
                     osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.08, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime + 0.3);
                 }
             } catch(e) {}
+        }
+
+        function selectChar(hero, element) {
+            selectedHero = hero;
+            document.querySelectorAll('.char-card').forEach(card => card.classList.remove('selected'));
+            element.classList.add('selected');
         }
 
         function startGame() {
@@ -324,14 +331,18 @@
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('boss-warning').style.display = 'none';
             
+            // 핵심 버그 픽스: 초기 인풋 스위치 상태 초기화 및 리프레시 동기화
+            keys.w = false; keys.a = false; keys.s = false; keys.d = false;
+            mouse.isDown = false;
+
             requestAnimationFrame(gameLoop);
         }
 
         function gameOver(reason) {
-            isPlaying = false; playSound('gameover');
+            isPlaying = false;
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('gameover-title').textContent = reason === 'time' ? "⏰ TIME OVER!" : "💀 DEFEAT";
-            document.getElementById('gameover-stats').innerHTML = `최종 토벌 스코어: ${killCount} 킬`;
+            document.getElementById('gameover-stats').innerHTML = `최종 킬 수: ${killCount} 킬`;
         }
 
         function spawnEnemy() {
@@ -345,11 +356,14 @@
 
         function gameLoop() {
             if (!isPlaying) return;
-            elapsedFrames++; updateGame(); renderGame(); requestAnimationFrame(gameLoop);
+            elapsedFrames++; 
+            updateGame(); 
+            renderGame(); 
+            requestAnimationFrame(gameLoop);
         }
 
         function updateGame() {
-            if (isPaused) return;
+            if (isPaused || !isPlaying) return;
             const sec = Math.floor(elapsedFrames / 60);
             document.getElementById('game-timer').textContent = `${Math.floor(sec/60).toString().padStart(2,'0')}:${(sec%60).toString().padStart(2,'0')}`;
 
@@ -369,18 +383,21 @@
 
             if (elapsedFrames % 30 === 0) spawnEnemy();
 
-            // 상하좌우 이동 계산 메커니즘 연동
+            // 안정적이고 즉각적인 상하좌우 이동 물리 가속 연산
             let dx = 0, dy = 0;
             if (keys.w) dy -= 1; if (keys.s) dy += 1; if (keys.a) dx -= 1; if (keys.d) dx += 1;
-            if (dx!==0 && dy!==0) { dx*=0.7071; dy*=0.7071; }
-            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x + dx * player.speed));
-            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y + dy * player.speed));
+            if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+            
+            player.x += dx * player.speed;
+            player.y += dy * player.speed;
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
             if (player.vampiricPact && elapsedFrames % 60 === 0) player.hp = Math.max(5, player.hp - 1);
 
             player.atkTimer++;
             if (player.atkTimer >= player.atkCooldown) {
-                // 마우스 클릭 상태에 기반한 연사 트리거 활성화
+                // 클릭 유지 시 완벽 발사 트리거 매핑 고정
                 if (mouse.isDown) { triggerAttack(); player.atkTimer = 0; }
             }
 

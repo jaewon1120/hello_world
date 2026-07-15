@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors: Greatsword Master Edition (Certified Fix)</title>
+    <title>Vampire Survivors: Greatsword Master Edition (Input Logic Perfected)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -39,6 +39,7 @@
             display: block;
             background-color: #141b17;
             cursor: crosshair;
+            outline: none; /* 포커스 테두리 제거 */
         }
 
         .overlay-screen {
@@ -88,16 +89,8 @@
             transition: all 0.2s ease;
         }
 
-        .char-card:hover {
-            border-color: #3b82f6;
-            transform: translateY(-5px);
-        }
-
-        .char-card.selected {
-            border-color: #10b981;
-            background: #0f172a;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
-        }
+        .char-card:hover { border-color: #3b82f6; transform: translateY(-5px); }
+        .char-card.selected { border-color: #10b981; background: #0f172a; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
 
         .char-icon { font-size: 40px; margin-bottom: 10px; }
         .char-name { font-size: 18px; font-weight: bold; color: #f8fafc; margin-bottom: 5px; }
@@ -170,7 +163,8 @@
             <div id="boss-timer" style="font-size: 18px; margin-top: 4px;">남은 시간: 120.0s</div>
         </div>
 
-        <canvas id="gameCanvas" width="900" height="600"></canvas>
+        <!-- 포커스를 잡을 수 있도록 tabIndex 추가 -->
+        <canvas id="gameCanvas" width="900" height="600" tabIndex="1"></canvas>
 
         <!-- Start Screen -->
         <div id="start-screen" class="overlay-screen">
@@ -219,7 +213,6 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // 게임 상태 스위칭 변수들 고정
         let selectedHero = 'knight';
         let isPlaying = false;
         let isPaused = false;
@@ -233,7 +226,6 @@
         let enemies = [], particles = [], projectiles = [], gems = [], barriers = [];
         let activeBoss = null, bossSpawned = false, bossTimeRemaining = 7200;
 
-        // 보상 아이템 목록 정의
         const NORMAL_REWARDS = [
             { id: 'hp_up', type: 'normal', name: '강인한 육체', desc: '최대 체력 +20% 및 즉시 치유', effect: () => { player.maxHp = Math.round(player.maxHp * 1.2); player.hp = player.maxHp; } },
             { id: 'dmg_up', type: 'normal', name: '예리한 날각', desc: '공격 공격력 +15%', effect: () => { player.atkDmg = Math.round(player.atkDmg * 1.15); } },
@@ -264,25 +256,27 @@
             { id: 'boss5', name: '종말의 사신', time: 280, maxHp: 27000, size: 48, color: '#a855f7', power: 45, speed: 1.8 }
         ];
 
-        // 이벤트 리스너 전역에 바인딩
+        // 이벤트 바인딩 대상을 window로 확장하여 포커스 이슈 전면 해결
         window.addEventListener('keydown', e => { 
             const k = e.key.toLowerCase();
-            if (k in keys) keys[k] = true; 
+            if (k in keys) {
+                e.preventDefault();
+                keys[k] = true; 
+            }
         });
         window.addEventListener('keyup', e => { 
             const k = e.key.toLowerCase();
             if (k in keys) keys[k] = false; 
         });
         
-        canvas.addEventListener('mousemove', e => { 
+        window.addEventListener('mousemove', e => { 
             const r = canvas.getBoundingClientRect(); 
             mouse.x = e.clientX - r.left; 
             mouse.y = e.clientY - r.top; 
         });
-        canvas.addEventListener('mousedown', () => { mouse.isDown = true; });
-        canvas.addEventListener('mouseup', () => { mouse.isDown = false; });
+        window.addEventListener('mousedown', (e) => { if(isPlaying && !isPaused) mouse.isDown = true; });
+        window.addEventListener('mouseup', () => { mouse.isDown = false; });
 
-        // 오디오 제어 코드
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
             try {
@@ -313,9 +307,10 @@
 
         function startGame() {
             if (audioCtx.state === 'suspended') { audioCtx.resume(); }
-            playSound('levelup');
+            
+            // 캔버스 강제 핵심 포커싱으로 입력 차단 버그 전면 해결
+            canvas.focus();
 
-            isPlaying = true; isPaused = false; elapsedFrames = 0; killCount = 0;
             player.x = 450; player.y = 300; player.level = 1; player.xp = 0; player.nextXp = 10;
             player.armor = 0; player.critChance = 0.05; player.regenRate = 0; player.explosiveShots = false;
             player.orbitBarrier = false; player.lifesteal = 0; player.deathSave = false; player.vampiricPact = false;
@@ -326,23 +321,25 @@
             else if (selectedHero === 'ranger') { player.hp = 100; player.maxHp = 100; player.speed = 3.6; player.atkDmg = 12; player.atkCooldown = 22; }
 
             enemies = []; projectiles = []; gems = []; particles = []; barriers = []; activeBoss = null; bossSpawned = false;
+            killCount = 0; elapsedFrames = 0;
             
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('gameover-screen').classList.add('hidden');
             document.getElementById('boss-warning').style.display = 'none';
             
-            // 핵심 버그 픽스: 초기 인풋 스위치 상태 초기화 및 리프레시 동기화
             keys.w = false; keys.a = false; keys.s = false; keys.d = false;
             mouse.isDown = false;
+            isPlaying = true;
 
+            playSound('levelup');
             requestAnimationFrame(gameLoop);
         }
 
         function gameOver(reason) {
-            isPlaying = false;
+            isPlaying = false; playSound('gameover');
             document.getElementById('gameover-screen').classList.remove('hidden');
             document.getElementById('gameover-title').textContent = reason === 'time' ? "⏰ TIME OVER!" : "💀 DEFEAT";
-            document.getElementById('gameover-stats').innerHTML = `최종 킬 수: ${killCount} 킬`;
+            document.getElementById('gameover-stats').innerHTML = `최종 토벌 스코어: ${killCount} 킬`;
         }
 
         function spawnEnemy() {
@@ -356,10 +353,7 @@
 
         function gameLoop() {
             if (!isPlaying) return;
-            elapsedFrames++; 
-            updateGame(); 
-            renderGame(); 
-            requestAnimationFrame(gameLoop);
+            elapsedFrames++; updateGame(); renderGame(); requestAnimationFrame(gameLoop);
         }
 
         function updateGame() {
@@ -383,7 +377,6 @@
 
             if (elapsedFrames % 30 === 0) spawnEnemy();
 
-            // 안정적이고 즉각적인 상하좌우 이동 물리 가속 연산
             let dx = 0, dy = 0;
             if (keys.w) dy -= 1; if (keys.s) dy += 1; if (keys.a) dx -= 1; if (keys.d) dx += 1;
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
@@ -397,7 +390,6 @@
 
             player.atkTimer++;
             if (player.atkTimer >= player.atkCooldown) {
-                // 클릭 유지 시 완벽 발사 트리거 매핑 고정
                 if (mouse.isDown) { triggerAttack(); player.atkTimer = 0; }
             }
 
@@ -500,7 +492,7 @@
                 let r = rewards[Math.floor(Math.random()*rewards.length)];
                 let card = document.createElement('div'); card.className = `reward-card ${r.type}`;
                 card.innerHTML = `<div class="reward-title">${r.name}</div><div class="reward-desc">${r.desc}</div>`;
-                card.onclick = () => { r.effect(); document.getElementById('reward-screen').classList.add('hidden'); isPaused = false; };
+                card.onclick = () => { r.effect(); document.getElementById('reward-screen').classList.add('hidden'); isPaused = false; canvas.focus(); };
                 list.appendChild(card);
             }
             document.getElementById('reward-screen').classList.remove('hidden');
